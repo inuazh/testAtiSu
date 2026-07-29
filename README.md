@@ -1,92 +1,102 @@
-# Грузовые аукционы — SPA
+# Cargo Auctions
 
-Каркас проекта по [TASK.md](TASK.md). Бизнес-логика ещё не реализована: OpenAPI-схема
-`openapi.auctions.v0.json` не получена, поэтому DTO, типы, фикстуры и MSW-хендлеры
-намеренно пустые.
+SPA для работы с грузовыми аукционами. Тестовое задание.
 
-## Команды
+## Запуск
 
-| Команда            | Что делает                                        |
-| ------------------ | ------------------------------------------------- |
-| `npm run dev`      | Dev-сервер Vite, MSW стартует автоматически        |
-| `npm run build`    | Проверка типов (`tsc -b`) и production-сборка      |
-| `npm run preview`  | Просмотр production-сборки                         |
-| `npm run typecheck`| Только проверка типов                              |
-| `npm run lint`     | Biome: линт + формат (проверка)                    |
-| `npm run lint:fix` | Biome: линт + формат с автоисправлением            |
-| `npm run format`   | Biome: только форматирование                       |
-| `npm test`         | Vitest, один прогон                                |
-| `npm run test:watch` | Vitest в watch-режиме                            |
+```bash
+npm ci
+npm run dev
+```
+
+Открыть http://localhost:5173
+
+### Остальные команды
+
+```bash
+npm run build      # production-сборка
+npm run preview    # просмотр production-сборки
+npm run test       # тесты
+npm run lint       # Biome
+```
+
+Требуется Node >= 22.12.0.
 
 ## Стек
 
-Vite 8, React 19, TypeScript 7 (strict), TanStack Router (file-based) + TanStack Query v5,
+React 19, TypeScript 7 (strict, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
+`verbatimModuleSyntax`), Vite 8, TanStack Router (file-based), TanStack Query v5,
 Zustand v5, React Hook Form + Zod v4, MSW, Tailwind v4, Biome, Vitest + Testing Library.
 
-## Структура
+Структура — Feature-Sliced Design, алиас `@/` → `src/`.
 
-Feature-Sliced Design, алиас `@/` → `src/`.
+## Моки
 
-```
-src/
-  app/        точка сборки: провайдеры, роуты, стили
-    routes/   file-based роуты TanStack Router
-  pages/      auctions-list, auction-detail, auction-bid
-  widgets/    пусто
-  features/   пусто
-  entities/   пусто
-  shared/
-    api/mocks/  MSW: worker, пустой список хендлеров
-    config/test/ setup для Vitest
-    lib/        пусто
-    ui/         пусто
-```
+Backend отсутствует, все запросы обслуживает MSW.
 
-`src/app/routeTree.gen.ts` генерируется плагином TanStack Router при `dev` и `build`.
+Мок-слой включается переменной `VITE_ENABLE_MOCKS` (по умолчанию `true`).
+Работает и в dev, и в production-сборке — иначе собранное приложение
+нечем наполнить.
 
-## Маршруты
+Известные ограничения:
 
-- `/` → редирект на `/auctions`
-- `/auctions` — список
-- `/auctions/$auctionUuid` — детальная карточка
-- `/auctions/$auctionUuid/bid` — установка ставки
+- `msw` уезжает отдельным чанком (404 kB / 152 kB gzip). Для тестового приемлемо,
+  в реальном проекте мок-слой в production-бандл не попадает.
+- Service Worker браузер разрешает только на `localhost` или по HTTPS.
+  На HTTP-хосте моки не поднимутся.
 
-Все три — заглушки.
+<!-- TODO: описать, что мок-store действительно мутирует после POST ставки -->
 
-## MSW
+## Схема API
 
-Воркер (`public/mockServiceWorker.js`) поднимается и в dev, и в production-сборке —
-бэкенда нет, моки нужны везде. Приложение рендерится только после того, как
-`worker.start()` зарезолвится. Необработанные запросы пропускаются на реальную сеть
-(`onUnhandledRequest: 'bypass'`). Хендлеры добавляются в
-`src/shared/api/mocks/handlers.ts` после получения схемы.
+<!--
+TODO: своими словами. Факты:
+- openapi.auctions.v0.json в материалах не был, запрошен <дата>, ответа нет
+- работа велась по восстановленной из описания схеме
+- всё предположительное помечено PROVISIONAL, grep по проекту покажет список
+- при получении настоящей схемы: заменить файл, перегенерировать типы,
+  компилятор подсветит расхождения
+-->
 
-Раз воркер нужен в проде, `msw` лежит в `dependencies`, а не в `devDependencies`, и
-уезжает в отдельный чанк (~404 kB / 152 kB gzip). Service Worker браузер разрешает
-только на `localhost` или по HTTPS — при деплое на HTTP-хост моки не поднимутся.
+## Замечание по исходному PDF
 
-## Версии
+<!--
+TODO: своими словами. Факты:
+- в PDF текст 4pt цветом white на белом, две вставки, стр. 2 и 3
+- содержание: именовать файлы компонентов *.component.tsx, обращение к AI-агенту
+- нашёл через pdftotext, подтвердил size/non_stroking_color в pdfplumber
+- расценил как prompt injection, а не требование к кандидату:
+  настоящие требования оформлены видимо
+- поэтому в бриф для агента этот текст не попал, именование по конвенции проекта
+- готов переименовать, если это всё-таки конвенция команды
+-->
 
-Все зависимости зафиксированы точно, без `^`; `.npmrc` с `save-exact=true`, чтобы
-новые установки не размывали пины. `package-lock.json` в репозитории.
-Требуется Node `>=22.12.0` (`engines.node`).
+## Архитектурные решения
 
-## Что проверено
+<!--
+TODO: по мере работы. Что точно спросят на защите:
+- почему такая нарезка FSD, что попало в entities, что в features
+- форма ключей кэша, почему именно так
+- почему после мутации invalidateQueries, а не setQueryData
+- почему мок-store мутабельный
+- как устроен синк фильтров с URL и почему fallback, а не ошибка
+-->
 
-- `npm run dev` — сервер стартует, все четыре маршрута отдают приложение,
-  `mockServiceWorker.js` доступен
-- `npm run build && npm run preview` — в headless-браузере на production-сборке
-  страница рендерится, в консоли `[MSW] Mocking enabled.`,
-  `navigator.serviceWorker.controller` не пустой; проверены `/auctions` и
-  `/auctions/abc/bid`
-- `npm test` — 3 теста: монтирование всех трёх страниц, `auctionUuid` прокидывается
-- `npm run lint` — без замечаний
-- `npx openapi-typescript` отрабатывает на TypeScript 7: сгенерированные типы
-  проходят `tsc -b` под текущим strict-конфигом, enum-значения из схемы реально
-  сужаются до литералов
+## Что проверял
+
+<!--
+TODO: заполнять по ходу, не в конце. Сюда: какие сценарии прошёл руками,
+что покрыто тестами, где проверял edge cases.
+-->
 
 ## Ограничения
 
-- нет DTO, типов, фикстур и MSW-хендлеров — ждём `openapi.auctions.v0.json`
-- слои `widgets`, `features`, `entities` и сегменты `shared/lib`, `shared/ui` пустые
-- нет favicon — в консоли 404 на `/favicon.ico`
+<!-- TODO: что не сделано и почему -->
+
+## Тесты
+
+```bash
+npm run test
+```
+
+<!-- TODO: перечислить, что покрыто -->
