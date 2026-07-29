@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm -v)",
+      "Bash(npm install *)",
+      "Bash(npm view *)",
+      "Bash(npm ls *)",
+      "Bash(npx biome *)",
+      "Bash(npx msw *)",
+      "Bash(npx tsc *)",
+      "Bash(npx tsr *)",
+      "Bash(npx vite *)",
+      "Bash(npm run *)",
+      "Bash(curl -sf -o /dev/null http://localhost:5199/auctions)",
+      "Bash(curl -sf -o /dev/null -w \"root=%{http_code}\\\\n\" http://localhost:5199/)",
+      "Bash(curl -sf -o /dev/null -w \"worker=%{http_code}\\\\n\" http://localhost:5199/mockServiceWorker.js)",
+      "PowerShell(foreach \\($p in '/', '/auctions', '/auctions/abc', '/auctions/abc/bid', '/mockServiceWorker.js', '/src/main.tsx'\\) { try { $r = Invoke-WebRequest -Uri \"http://127.0.0.1:5199$p\" -UseBasicParsing -TimeoutSec 15; \"$p -> $\\($r.StatusCode\\)\" } catch { \"$p -> ERROR $\\($_.Exception.Message\\)\" } })",
+      "PowerShell(Get-NetTCPConnection -LocalPort 5199 -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
+      "PowerShell(foreach \\($p in '/', '/auctions', '/auctions/abc', '/auctions/abc/bid', '/mockServiceWorker.js', '/src/main.tsx'\\) { try { $r = Invoke-WebRequest -Uri \"http://[::1]:5199$p\" -UseBasicParsing -TimeoutSec 15; \"$p -> $\\($r.StatusCode\\) len=$\\($r.RawContentLength\\)\" } catch { \"$p -> ERROR $\\($_.Exception.Message\\)\" } })",
+      "Bash(node -e ' *)",
+      "PowerShell(foreach \\($p in '/', '/auctions', '/auctions/abc', '/auctions/abc/bid', '/mockServiceWorker.js', '/src/main.tsx'\\) { try { $r = Invoke-WebRequest -Uri \"http://[::1]:5199$p\" -UseBasicParsing -TimeoutSec 15; \"$p -> $\\($r.StatusCode\\) len=$\\($r.Content.Length\\)\" } catch { \"$p -> ERROR $\\($_.Exception.Message\\)\" } })",
+      "PowerShell(Start-Sleep -Seconds 4; foreach \\($p in '/', '/auctions', '/auctions/abc', '/auctions/abc/bid', '/mockServiceWorker.js', '/src/main.tsx'\\) { try { $r = Invoke-WebRequest -Uri \"http://127.0.0.1:5199$p\" -UseBasicParsing -TimeoutSec 15; \"$p -> $\\($r.StatusCode\\) len=$\\($r.Content.Length\\)\" } catch { \"$p -> ERROR $\\($_.Exception.Message\\)\" } })",
+      "Bash(npx vitest *)"
+    ]
+  }
+}
