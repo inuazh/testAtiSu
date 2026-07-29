@@ -38,7 +38,13 @@
       "Bash(git config *)",
       "Bash(rm -rf dist node_modules/.tmp)",
       "Bash(git checkout *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(npx --yes openapi-typescript@7.13.0 openapi.auctions.v0.json -o src/shared/api/schema.d.ts)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(python -)",
+      "Bash(rm -f src/features/index.ts)",
+      "Bash(printf \"export { AuctionBets } from './ui/AuctionBets';\\\\n\")",
+      "Bash(rm -f src/widgets/index.ts)"
     ]
   }
 }
