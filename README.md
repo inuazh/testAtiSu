@@ -55,20 +55,38 @@ src/
 
 ## MSW
 
-Воркер (`public/mockServiceWorker.js`) поднимается только в dev, необработанные запросы
-пропускаются на реальную сеть (`onUnhandledRequest: 'bypass'`). Хендлеры добавляются в
+Воркер (`public/mockServiceWorker.js`) поднимается и в dev, и в production-сборке —
+бэкенда нет, моки нужны везде. Приложение рендерится только после того, как
+`worker.start()` зарезолвится. Необработанные запросы пропускаются на реальную сеть
+(`onUnhandledRequest: 'bypass'`). Хендлеры добавляются в
 `src/shared/api/mocks/handlers.ts` после получения схемы.
+
+Раз воркер нужен в проде, `msw` лежит в `dependencies`, а не в `devDependencies`, и
+уезжает в отдельный чанк (~404 kB / 152 kB gzip). Service Worker браузер разрешает
+только на `localhost` или по HTTPS — при деплое на HTTP-хост моки не поднимутся.
+
+## Версии
+
+Все зависимости зафиксированы точно, без `^`; `.npmrc` с `save-exact=true`, чтобы
+новые установки не размывали пины. `package-lock.json` в репозитории.
+Требуется Node `>=22.12.0` (`engines.node`).
 
 ## Что проверено
 
 - `npm run dev` — сервер стартует, все четыре маршрута отдают приложение,
   `mockServiceWorker.js` доступен
-- страницы всех трёх маршрутов монтируются, параметр `auctionUuid` прокидывается
-- `npm run build` — типы и сборка проходят
+- `npm run build && npm run preview` — в headless-браузере на production-сборке
+  страница рендерится, в консоли `[MSW] Mocking enabled.`,
+  `navigator.serviceWorker.controller` не пустой; проверены `/auctions` и
+  `/auctions/abc/bid`
+- `npm test` — 3 теста: монтирование всех трёх страниц, `auctionUuid` прокидывается
 - `npm run lint` — без замечаний
+- `npx openapi-typescript` отрабатывает на TypeScript 7: сгенерированные типы
+  проходят `tsc -b` под текущим strict-конфигом, enum-значения из схемы реально
+  сужаются до литералов
 
 ## Ограничения
 
 - нет DTO, типов, фикстур и MSW-хендлеров — ждём `openapi.auctions.v0.json`
 - слои `widgets`, `features`, `entities` и сегменты `shared/lib`, `shared/ui` пустые
-- тестов нет: тестировать пока нечего, `passWithNoTests` включён
+- нет favicon — в консоли 404 на `/favicon.ico`
