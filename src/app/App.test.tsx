@@ -8,14 +8,16 @@ let auctionUuid = '';
 let cargoNum = '';
 
 beforeAll(() => {
-  const first = mockStore.list({ page: 1, limit: 1 }).items[0];
+  const first = mockStore.list({ page: 1, per_page: 1 }).data?.[0];
+  const uuid = first?.main?.order_uid;
+  const num = first?.main?.cargo_num;
 
-  if (first === undefined) {
+  if (uuid === undefined || num === undefined) {
     throw new Error('Мок-стор не отдал ни одного аукциона');
   }
 
-  auctionUuid = first.uuid;
-  cargoNum = first.cargo_num;
+  auctionUuid = uuid;
+  cargoNum = num;
 });
 
 test('список аукционов отдаёт карточки', async () => {

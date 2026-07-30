@@ -27,7 +27,9 @@ export function AuctionList({
 
   const handleIntent = useCallback(
     (auctionUuid: string) => {
-      void queryClient.prefetchQuery(auctionDetailQueryOptions(auctionUuid));
+      if (auctionUuid !== '') {
+        void queryClient.prefetchQuery(auctionDetailQueryOptions(auctionUuid));
+      }
     },
     [queryClient],
   );
@@ -89,8 +91,8 @@ export function AuctionList({
         ))}
       </div>
       <Pagination
-        page={list.page}
-        pagesCount={list.pagesCount}
+        page={list.currentPage}
+        pagesCount={list.lastPage}
         total={list.total}
         onPageChange={onPageChange}
       />

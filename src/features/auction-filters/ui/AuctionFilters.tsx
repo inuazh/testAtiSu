@@ -1,21 +1,45 @@
-import { AUC_TYPE_LABELS, AUCTION_STATUS_LABELS } from '@/entities/auction';
-import { AUC_TYPE_VALUES, AUCTION_STATUS_VALUES, MOCK_CITIES } from '@/shared/api';
+import {
+  AUCTION_STATUS_LABELS,
+  AUCTION_TYPE_LABELS,
+  TRADING_STATUS_LABELS,
+} from '@/entities/auction';
+import {
+  AUCTION_STATUS_BY_CODE,
+  AUCTION_STATUS_CODE_VALUES,
+  AUCTION_TYPE_FILTER_VALUES,
+  type AuctionStatusCode,
+  type AuctionTypeFilterValue,
+  MOCK_CITIES,
+  TRADING_STATUS_VALUES,
+  type TradingStatusDto,
+} from '@/shared/api';
 import { Button, Field, Input, Select, type SelectOption } from '@/shared/ui';
-import { type AuctionSearch, clearFilters, DEFAULT_PAGE } from '../model/searchParams';
+import {
+  type AuctionSearch,
+  clearFilters,
+  DEFAULT_PAGE,
+  fromDateInputValue,
+  toDateInputValue,
+} from '../model/searchParams';
 
 const CITY_OPTIONS: SelectOption[] = MOCK_CITIES.map((city) => ({
-  value: city.id,
+  value: city.name,
   label: city.name,
 }));
 
-const STATUS_OPTIONS: SelectOption[] = AUCTION_STATUS_VALUES.map((status) => ({
+const TRADING_STATUS_OPTIONS: SelectOption[] = TRADING_STATUS_VALUES.map((status) => ({
   value: status,
-  label: AUCTION_STATUS_LABELS[status],
+  label: TRADING_STATUS_LABELS[status],
 }));
 
-const AUC_TYPE_OPTIONS: SelectOption[] = AUC_TYPE_VALUES.map((aucType) => ({
-  value: aucType,
-  label: AUC_TYPE_LABELS[aucType],
+const AUCTION_STATUS_OPTIONS: SelectOption[] = AUCTION_STATUS_CODE_VALUES.map((code) => ({
+  value: String(code),
+  label: AUCTION_STATUS_LABELS[AUCTION_STATUS_BY_CODE[code]],
+}));
+
+const AUCTION_TYPE_OPTIONS: SelectOption[] = AUCTION_TYPE_FILTER_VALUES.map((value) => ({
+  value,
+  label: AUCTION_TYPE_LABELS[value],
 }));
 
 const TRISTATE_OPTIONS: SelectOption[] = [
@@ -23,10 +47,17 @@ const TRISTATE_OPTIONS: SelectOption[] = [
   { value: 'false', label: 'Нет' },
 ];
 
+const MULTI_SELECT_CLASSES =
+  'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500';
+
 interface AuctionFiltersProps {
   search: AuctionSearch;
   activeCount: number;
   onChange: (next: AuctionSearch) => void;
+}
+
+function selectedValues(element: HTMLSelectElement): string[] {
+  return [...element.selectedOptions].map((option) => option.value);
 }
 
 export function AuctionFilters({ search, activeCount, onChange }: AuctionFiltersProps) {
@@ -51,13 +82,8 @@ export function AuctionFilters({ search, activeCount, onChange }: AuctionFilters
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
   };
 
-  const parseOptionalBoolean = (value: string): boolean | undefined => {
-    if (value === '') {
-      return undefined;
-    }
-
-    return value === 'true';
-  };
+  const parseOptionalBoolean = (value: string): boolean | undefined =>
+    value === '' ? undefined : value === 'true';
 
   return (
     <form
@@ -69,62 +95,67 @@ export function AuctionFilters({ search, activeCount, onChange }: AuctionFilters
           <Input
             id="filter-cargo-num"
             value={textValue(search.cargo_num)}
-            placeholder="AU-100000"
+            placeholder="00000001059"
             onChange={(event) => patch({ cargo_num: parseOptionalText(event.target.value) })}
           />
         </Field>
 
-        <Field label="Статус" htmlFor="filter-status">
-          <Select
-            id="filter-status"
-            options={STATUS_OPTIONS}
-            placeholder="Любой"
-            value={textValue(search.status)}
-            onChange={(event) =>
-              patch({
-                status: STATUS_OPTIONS.some((option) => option.value === event.target.value)
-                  ? (event.target.value as AuctionSearch['status'])
-                  : undefined,
-              })
-            }
-          />
-        </Field>
-
         <Field label="Тип аукциона" htmlFor="filter-auc-type">
-          <Select
+          <select
             id="filter-auc-type"
-            options={AUC_TYPE_OPTIONS}
-            placeholder="Любой"
-            value={textValue(search.auc_type)}
-            onChange={(event) =>
-              patch({
-                auc_type: AUC_TYPE_OPTIONS.some((option) => option.value === event.target.value)
-                  ? (event.target.value as AuctionSearch['auc_type'])
-                  : undefined,
-              })
-            }
-          />
+            multiple
+            size={4}
+            className={MULTI_SELECT_CLASSES}
+            value={search.auc_type ?? []}
+            onChange={(event) => {
+              const selected = selectedValues(event.target) as AuctionTypeFilterValue[];
+
+              patch({ auc_type: selected.length > 0 ? selected : undefined });
+            }}
+          >
+            {AUCTION_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </Field>
 
-        <Field label="Несколько статусов" htmlFor="filter-statuses">
+        <Field label="Мой торговый статус" htmlFor="filter-status">
+          <select
+            id="filter-status"
+            multiple
+            size={4}
+            className={MULTI_SELECT_CLASSES}
+            value={search.status ?? []}
+            onChange={(event) => {
+              const selected = selectedValues(event.target) as TradingStatusDto[];
+
+              patch({ status: selected.length > 0 ? selected : undefined });
+            }}
+          >
+            {TRADING_STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="Статус аукциона" htmlFor="filter-statuses">
           <select
             id="filter-statuses"
             multiple
-            size={3}
-            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
-            value={search.statuses ?? []}
+            size={4}
+            className={MULTI_SELECT_CLASSES}
+            value={(search.statuses ?? []).map(String)}
             onChange={(event) => {
-              const selected = [...event.target.selectedOptions].map((option) => option.value);
+              const selected = selectedValues(event.target).map(Number) as AuctionStatusCode[];
 
-              patch({
-                statuses:
-                  selected.length > 0
-                    ? (selected as NonNullable<AuctionSearch['statuses']>)
-                    : undefined,
-              });
+              patch({ statuses: selected.length > 0 ? selected : undefined });
             }}
           >
-            {STATUS_OPTIONS.map((option) => (
+            {AUCTION_STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -156,8 +187,10 @@ export function AuctionFilters({ search, activeCount, onChange }: AuctionFilters
           <Input
             id="filter-load-date-from"
             type="date"
-            value={textValue(search.load_date_from)}
-            onChange={(event) => patch({ load_date_from: parseOptionalText(event.target.value) })}
+            value={toDateInputValue(search.load_date_from)}
+            onChange={(event) =>
+              patch({ load_date_from: fromDateInputValue(event.target.value, false) })
+            }
           />
         </Field>
 
@@ -165,8 +198,10 @@ export function AuctionFilters({ search, activeCount, onChange }: AuctionFilters
           <Input
             id="filter-load-date-to"
             type="date"
-            value={textValue(search.load_date_to)}
-            onChange={(event) => patch({ load_date_to: parseOptionalText(event.target.value) })}
+            value={toDateInputValue(search.load_date_to)}
+            onChange={(event) =>
+              patch({ load_date_to: fromDateInputValue(event.target.value, true) })
+            }
           />
         </Field>
 
@@ -180,7 +215,7 @@ export function AuctionFilters({ search, activeCount, onChange }: AuctionFilters
           />
         </Field>
 
-        <Field label="Моя ставка есть" htmlFor="filter-is-bidder">
+        <Field label="Я участвовал" htmlFor="filter-is-bidder">
           <Select
             id="filter-is-bidder"
             options={TRISTATE_OPTIONS}
@@ -195,8 +230,10 @@ export function AuctionFilters({ search, activeCount, onChange }: AuctionFilters
             id="filter-price-from"
             type="number"
             min={0}
-            value={numberValue(search.price_from)}
-            onChange={(event) => patch({ price_from: parseOptionalNumber(event.target.value) })}
+            value={numberValue(search.current_price_from)}
+            onChange={(event) =>
+              patch({ current_price_from: parseOptionalNumber(event.target.value) })
+            }
           />
         </Field>
 
@@ -205,8 +242,10 @@ export function AuctionFilters({ search, activeCount, onChange }: AuctionFilters
             id="filter-price-to"
             type="number"
             min={0}
-            value={numberValue(search.price_to)}
-            onChange={(event) => patch({ price_to: parseOptionalNumber(event.target.value) })}
+            value={numberValue(search.current_price_to)}
+            onChange={(event) =>
+              patch({ current_price_to: parseOptionalNumber(event.target.value) })
+            }
           />
         </Field>
       </div>

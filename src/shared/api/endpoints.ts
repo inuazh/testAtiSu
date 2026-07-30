@@ -1,11 +1,10 @@
 import { apiRequest } from './client';
 import type {
-  AuctionDetailDto,
   AuctionListRequestDto,
   AuctionListResponseDto,
-  BetsResponseDto,
-  CreateBetRequestDto,
-  CreateBetResponseDto,
+  AuctionShowResponseDto,
+  BetListResponseDto,
+  SetBetRequestDto,
 } from './dto';
 
 export function getAuctionsList(
@@ -22,22 +21,19 @@ export function getAuctionsList(
 export function getAuctionDetail(
   auctionUuid: string,
   signal?: AbortSignal,
-): Promise<AuctionDetailDto> {
-  return apiRequest<AuctionDetailDto>(`/auctions/${auctionUuid}`, { signal });
+): Promise<AuctionShowResponseDto> {
+  return apiRequest<AuctionShowResponseDto>(`/auctions/${auctionUuid}`, { signal });
 }
 
 export function getAuctionBets(
   auctionUuid: string,
   signal?: AbortSignal,
-): Promise<BetsResponseDto> {
-  return apiRequest<BetsResponseDto>(`/auctions/${auctionUuid}/bets`, { signal });
+): Promise<BetListResponseDto> {
+  return apiRequest<BetListResponseDto>(`/auctions/${auctionUuid}/bets`, { signal });
 }
 
-export function createBet(
-  auctionUuid: string,
-  request: CreateBetRequestDto,
-): Promise<CreateBetResponseDto> {
-  return apiRequest<CreateBetResponseDto>(`/auctions/${auctionUuid}/bets`, {
+export function setBet(auctionUuid: string, request: SetBetRequestDto): Promise<unknown> {
+  return apiRequest<unknown>(`/auctions/${auctionUuid}/bets`, {
     method: 'POST',
     body: request,
   });

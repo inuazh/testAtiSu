@@ -1,17 +1,14 @@
 import type {
-  AuctionDetailDto,
   AuctionListItemDto,
   AuctionListResponseDto,
-  BetDto,
-  BetsResponseDto,
-  CargoDto,
+  AuctionShowResponseDto,
+  AuctionShowTradingDto,
+  BetItemDto,
+  BetListResponseDto,
   ContactDto,
-  OrganizerDto,
-  PaymentConditionsDto,
-  RestrictionsDto,
+  DocsDto,
+  LoadingTypesDto,
   RoutePointDto,
-  TradingDto,
-  VehicleRequirementsDto,
 } from '@/shared/api';
 import {
   EMPTY_VALUE,
@@ -34,20 +31,23 @@ import type {
   CargoVm,
   ContactVm,
   OrganizerVm,
-  PaymentConditionsVm,
+  PaymentVm,
+  PricePairVm,
   PrimaryActionVm,
   RestrictionsVm,
   RoutePointVm,
   TradingVm,
-  VehicleRequirementsVm,
 } from '../model/types';
 import { PRIMARY_ACTION } from '../model/types';
 import {
-  AUC_TYPE_LABELS,
   AUCTION_STATUS_LABELS,
   AUCTION_STATUS_TONES,
-  BODY_TYPE_LABELS,
-  ROUTE_POINT_KIND_LABELS,
+  AUCTION_TYPE_LABELS,
+  BID_MEASUREMENT_TYPE_LABELS,
+  OPERATION_TYPE_LABELS,
+  PAYMENT_DELAY_TYPE_LABELS,
+  resolveLabel,
+  resolveTone,
   TRADING_STATUS_LABELS,
   TRADING_STATUS_TONES,
 } from './labels';
@@ -78,195 +78,336 @@ export function resolvePrimaryAction({
   return { kind: PRIMARY_ACTION.ViewBets, label: 'Смотреть ставки', disabled: false };
 }
 
-export function mapCargo(dto: CargoDto, noViewCargoPrice: boolean): CargoVm {
+function pricePair(
+  withVat: number | null | undefined,
+  noVat: number | null | undefined,
+): PricePairVm {
+  return { withVat: formatPrice(withVat), noVat: formatPrice(noVat) };
+}
+
+function parsePriceText(value: string | null | undefined): string {
+  if (value === null || value === undefined || value.trim() === '') {
+    return EMPTY_VALUE;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? formatPrice(parsed) : value;
+}
+
+const LOADING_TYPE_LABELS: Record<string, string> = {
+  side: 'боковая',
+  top: 'верхняя',
+  rear: 'задняя',
+  full: 'полная растентовка',
+};
+
+const DOCS_LABELS: Record<string, string> = {
+  tir: 'TIR',
+  cmr: 'CMR',
+  t1: 'T1',
+  med: 'Мед. книжка',
+};
+
+function flagList(
+  source: Record<string, boolean | undefined>,
+  labels: Record<string, string>,
+): string {
+  const active = Object.entries(source)
+    .filter(([, enabled]) => enabled === true)
+    .map(([key]) => labels[key] ?? key);
+
+  return active.length > 0 ? active.join(', ') : EMPTY_VALUE;
+}
+
+function loadingTypesText(dto: LoadingTypesDto | undefined): string {
+  return flagList({ ...dto }, LOADING_TYPE_LABELS);
+}
+
+function docsText(dto: DocsDto | undefined): string {
+  return flagList({ ...dto }, DOCS_LABELS);
+}
+
+function temperatureText(from: number | null | undefined, to: number | null | undefined): string {
+  if ((from ?? null) === null && (to ?? null) === null) {
+    return EMPTY_VALUE;
+  }
+
+  return `${from ?? EMPTY_VALUE} … ${to ?? EMPTY_VALUE} °C`;
+}
+
+export function mapAuctionListItem(
+  dto: AuctionListItemDto,
+  auctionUuid: string,
+): AuctionListItemVm {
+  const main = dto.main;
+  const trading = dto.trading;
+  const price = trading?.price;
+  const route = dto.route;
+  const cargo = dto.cargo;
+  const organizer = dto.organizer;
+
+  const hasMyBet = trading?.your?.bet === true;
+  const canSetBet = trading?.can_set_bet === true;
+
   return {
-    name: dto.name,
-    weight: formatWeight(dto.weight),
-    volume: formatVolume(dto.volume),
-    bodyTypeLabel: BODY_TYPE_LABELS[dto.body_type],
-    price: noViewCargoPrice ? EMPTY_VALUE : formatPrice(dto.price),
-    priceHidden: noViewCargoPrice,
+    uuid: auctionUuid,
+    id: main?.id ?? null,
+    cargoNum: formatText(main?.cargo_num),
+    aucTypeLabel: resolveLabel(AUCTION_TYPE_LABELS, main?.auc_type),
+    statusLabel: resolveLabel(AUCTION_STATUS_LABELS, trading?.status),
+    statusTone: resolveTone(AUCTION_STATUS_TONES, trading?.status),
+    tradingStatusLabel: resolveLabel(TRADING_STATUS_LABELS, trading?.status_mobile),
+    tradingStatusTone: resolveTone(TRADING_STATUS_TONES, trading?.status_mobile),
+    routeFrom: formatText(route?.load?.city),
+    routeTo: formatText(route?.unload?.city),
+    loadDate: formatDate(route?.load?.date),
+    unloadDate: formatDate(route?.unload?.date),
+    cargoName: formatText(cargo?.name),
+    cargoWeight: formatWeight(cargo?.weight),
+    cargoVolume: formatVolume(cargo?.volume),
+    bodyType: formatText(cargo?.body_type),
+    currentPrice: formatPrice(price?.current),
+    currentPriceNoVat: formatPrice(price?.current_no_vat),
+    pricePerKm: formatPricePerKm(main?.price_per_km),
+    hasMyBet,
+    myBetPrice: formatPrice(trading?.your?.last_bet),
+    canSetBet,
+    organizationName: formatText(organizer?.organization_name),
+    organizationHidden: organizer?.is_hide_organization === true,
+    primaryAction: resolvePrimaryAction({ canSetBet, hasMyBet, betsHidden: false }),
   };
 }
 
-export function mapTrading(dto: TradingDto): TradingVm {
+export function mapAuctionList(
+  dto: AuctionListResponseDto,
+  uuidOf: (item: AuctionListItemDto, index: number) => string,
+): AuctionListVm {
+  const meta = dto.meta;
+  const items = dto.data ?? [];
+
   return {
-    canSetBet: dto.can_set_bet,
-    currentPrice: formatPrice(dto.current_price),
-    availablePrice: formatPrice(dto.available_price),
-    pricePerKm: formatPricePerKm(dto.price_per_km),
-    min: formatPrice(dto.min),
-    max: formatPrice(dto.max),
-    step: formatPrice(dto.step),
-    statusLabel: TRADING_STATUS_LABELS[dto.trading_status],
-    statusTone: TRADING_STATUS_TONES[dto.trading_status],
-    hasMyBet: dto.has_my_bet,
-    myBetPrice: formatPrice(dto.my_bet_price),
-    finishAt: formatDateTime(dto.finish_at),
+    items: items.map((item, index) => mapAuctionListItem(item, uuidOf(item, index))),
+    currentPage: meta?.current_page ?? 1,
+    lastPage: meta?.last_page ?? 1,
+    perPage: meta?.per_page ?? items.length,
+    total: meta?.total ?? items.length,
+  };
+}
+
+function mapTrading(dto: AuctionShowTradingDto | undefined): TradingVm {
+  const price = dto?.price;
+  const your = dto?.your;
+
+  return {
+    canSetBet: dto?.can_set_bet === true,
+    statusLabel: resolveLabel(TRADING_STATUS_LABELS, dto?.status_mobile),
+    statusTone: resolveTone(TRADING_STATUS_TONES, dto?.status_mobile),
+    auctionStatusLabel: resolveLabel(AUCTION_STATUS_LABELS, dto?.status),
+    auctionStatusTone: resolveTone(AUCTION_STATUS_TONES, dto?.status),
+    bidMeasurementLabel: resolveLabel(BID_MEASUREMENT_TYPE_LABELS, dto?.bid_measurement_type),
+    startTime: formatDateTime(dto?.start_time),
+    stopTime: formatDateTime(dto?.stop_time),
+    currentPrice: pricePair(price?.current, price?.current_no_vat),
+    availablePrice: pricePair(price?.available, price?.available_no_vat),
+    minPrice: pricePair(price?.min, price?.min_no_vat),
+    maxPrice: pricePair(price?.max, price?.max_no_vat),
+    step: pricePair(price?.step, price?.step_no_vat),
+    pricePerKm: formatPricePerKm(price?.price_per_km),
+    hasMyBet: your?.bet === true,
+    myBetWithVat: formatPrice(your?.last_bet_with_vat),
+    myBetNoVat: formatPrice(your?.last_bet),
+    isWinner: your?.win === true,
     limits: {
-      currentPrice: dto.current_price,
-      availablePrice: dto.available_price ?? null,
-      min: dto.min ?? null,
-      max: dto.max ?? null,
-      step: dto.step ?? null,
+      current: price?.current ?? null,
+      available: price?.available ?? null,
+      min: price?.min ?? null,
+      max: price?.max ?? null,
+      step: price?.step ?? null,
     },
   };
 }
 
-export function mapRoutePoint(dto: RoutePointDto, addressHidden: boolean): RoutePointVm {
+function mapRestrictions(dto: AuctionShowResponseDto): RestrictionsVm {
+  const trading = dto.trading;
+
   return {
-    uuid: dto.uuid,
-    kindLabel: ROUTE_POINT_KIND_LABELS[dto.kind],
-    cityName: dto.city.name,
-    regionName: formatText(dto.city.region),
-    address: addressHidden ? EMPTY_VALUE : formatText(dto.address),
+    hideBetsHistory: (trading?.hide_bets_history ?? dto.hide_bets_history) === true,
+    hidePlaces: trading?.hide_places === true,
+    hidePointsAddressAndContacts: trading?.hide_points_address_and_contacts === true,
+    noViewCargoPrice: trading?.no_view_cargo_price === true,
+  };
+}
+
+function mapRoutePoint(dto: RoutePointDto, index: number, addressHidden: boolean): RoutePointVm {
+  const location = dto.location;
+  const cargo = dto.cargo;
+  const contact = dto.contact;
+
+  return {
+    key: `${dto.row_num ?? index}-${location?.city_gc_id ?? index}`,
+    opTypeLabel: resolveLabel(OPERATION_TYPE_LABELS, dto.op_type),
+    cityName: formatText(location?.city_name),
+    cityFullName: formatText(location?.city_full_name),
+    address: addressHidden ? EMPTY_VALUE : formatText(location?.loading_address),
     addressHidden,
-    dateTime: formatDateTime(dto.date),
+    startDate: formatDateTime(dto.start_date),
+    endDate: formatDateTime(dto.end_date),
+    comment: formatText(dto.comment),
+    contractor: formatText(dto.contractor),
+    cargoName: formatText(cargo?.name),
+    packageName: formatText(cargo?.package_name),
+    weight: formatText(cargo?.weight),
+    volume: formatText(cargo?.volume),
+    contactName: addressHidden ? EMPTY_VALUE : formatText(contact?.name),
+    contactPhone: addressHidden ? EMPTY_VALUE : formatText(contact?.phone),
   };
 }
 
-export function mapAuctionListItem(dto: AuctionListItemDto): AuctionListItemVm {
-  const trading = mapTrading(dto.trading);
-
+function mapContact(dto: ContactDto, index: number): ContactVm {
   return {
-    uuid: dto.uuid,
-    cargoNum: dto.cargo_num,
-    aucTypeLabel: AUC_TYPE_LABELS[dto.auc_type],
-    statusLabel: AUCTION_STATUS_LABELS[dto.status],
-    statusTone: AUCTION_STATUS_TONES[dto.status],
-    routeFrom: dto.load_point.city.name,
-    routeTo: dto.unload_point.city.name,
-    loadDate: formatDate(dto.load_point.date),
-    unloadDate: formatDate(dto.unload_point.date),
-    distance: formatDistance(dto.distance_km),
-    cargo: mapCargo(dto.cargo, false),
-    trading,
-    primaryAction: resolvePrimaryAction({
-      canSetBet: dto.trading.can_set_bet,
-      hasMyBet: dto.trading.has_my_bet,
-      betsHidden: false,
-    }),
-  };
-}
-
-export function mapAuctionList(dto: AuctionListResponseDto): AuctionListVm {
-  return {
-    items: dto.items.map(mapAuctionListItem),
-    total: dto.total,
-    page: dto.page,
-    limit: dto.limit,
-    pagesCount: dto.limit > 0 ? Math.ceil(dto.total / dto.limit) : 0,
-  };
-}
-
-function mapContact(dto: ContactDto): ContactVm {
-  return {
-    name: dto.name,
+    key: dto.uid ?? `contact-${index}`,
+    name: formatText(dto.name),
     phone: formatText(dto.phone),
+    workPhone: formatText(dto.work_phone),
     email: formatText(dto.email),
   };
 }
 
-export function mapOrganizer(dto: OrganizerDto, contactsHidden: boolean): OrganizerVm {
+function mapOrganizer(dto: AuctionShowResponseDto['organizer']): OrganizerVm {
   return {
-    name: dto.name,
-    inn: formatText(dto.inn),
-    contacts: contactsHidden ? [] : (dto.contacts ?? []).map(mapContact),
-    contactsHidden,
+    name: formatText(dto?.organization_name),
+    inn: formatText(dto?.organization_inn),
+    kpp: formatText(dto?.organization_kpp),
+    subscriberCode: formatText(dto?.subscriber_code),
   };
 }
 
-function mapVehicleRequirements(
-  dto: VehicleRequirementsDto | null | undefined,
-): VehicleRequirementsVm | null {
-  if (!dto) {
-    return null;
-  }
-
-  const from = dto.temperature_from;
-  const to = dto.temperature_to;
-  const hasRange = (from ?? null) !== null || (to ?? null) !== null;
+function mapCargo(dto: AuctionShowResponseDto['cargo'], priceHidden: boolean): CargoVm {
+  const car = dto?.car;
 
   return {
-    bodyTypeLabels: (dto.body_types ?? []).map((bodyType) => BODY_TYPE_LABELS[bodyType]),
-    temperature: hasRange ? `${from ?? EMPTY_VALUE} … ${to ?? EMPTY_VALUE} °C` : EMPTY_VALUE,
-    loadingType: formatText(dto.loading_type),
-    comment: formatText(dto.comment),
+    price: priceHidden ? EMPTY_VALUE : parsePriceText(dto?.price),
+    priceHidden,
+    bodyType: formatText(dto?.body_type),
+    truckCount: formatNumber(dto?.truck_count),
+    distance: formatDistance(dto?.distance),
+    isInternational: dto?.is_international === true,
+    containered: dto?.containered === true,
+    temperature: temperatureText(dto?.temp_from, dto?.temp_to),
+    loadingTypes: loadingTypesText(dto?.loading_types),
+    docs: docsText(dto?.docs),
+    carType: formatText(car?.type),
+    carCapacity:
+      car === undefined || car === null
+        ? EMPTY_VALUE
+        : `${formatWeight(car.weight)} · ${formatVolume(car.volume)}`,
   };
 }
 
-function mapPaymentConditions(
-  dto: PaymentConditionsDto | null | undefined,
-): PaymentConditionsVm | null {
-  if (!dto) {
-    return null;
-  }
-
-  const days = dto.deferment_days;
+function mapPayment(dto: AuctionShowResponseDto['payment']): PaymentVm {
+  const delay = dto?.delay;
 
   return {
-    paymentType: formatText(dto.payment_type),
-    deferment: days === null || days === undefined ? EMPTY_VALUE : `${days} дн.`,
-    vatLabel: dto.with_vat === true ? 'С НДС' : 'Без НДС',
+    form: formatText(dto?.form),
+    condition: formatText(dto?.condition ?? dto?.condition_predefined),
+    delay:
+      delay === null || delay === undefined
+        ? EMPTY_VALUE
+        : `${delay} ${resolveLabel(PAYMENT_DELAY_TYPE_LABELS, dto?.delay_type)}`,
+    currencyCode: formatText(dto?.currency_code),
+    prepay: formatText(dto?.prepay),
   };
 }
 
-function mapRestrictions(dto: RestrictionsDto): RestrictionsVm {
-  return {
-    hideBetsHistory: dto.hide_bets_history,
-    hidePointsAddressAndContacts: dto.hide_points_address_and_contacts,
-    noViewCargoPrice: dto.no_view_cargo_price,
-  };
-}
-
-export function mapAuctionDetail(dto: AuctionDetailDto): AuctionDetailVm {
-  const restrictions = mapRestrictions(dto.restrictions);
+export function mapAuctionDetail(
+  dto: AuctionShowResponseDto,
+  auctionUuid: string,
+): AuctionDetailVm {
+  const restrictions = mapRestrictions(dto);
+  const trading = mapTrading(dto.trading);
 
   return {
-    uuid: dto.uuid,
-    cargoNum: dto.cargo_num,
-    aucTypeLabel: AUC_TYPE_LABELS[dto.auc_type],
-    statusLabel: AUCTION_STATUS_LABELS[dto.status],
-    statusTone: AUCTION_STATUS_TONES[dto.status],
-    comment: formatText(dto.comment),
-    distance: formatDistance(dto.distance_km),
-    points: dto.points.map((point) =>
-      mapRoutePoint(point, restrictions.hidePointsAddressAndContacts),
+    uuid: auctionUuid,
+    id: dto.main?.id ?? null,
+    ownOrganizationId: findOwnOrganizationId(dto),
+    cargoNum: formatText(dto.main?.cargo_num),
+    cargoDate: formatDate(dto.main?.cargo_date),
+    aucTypeLabel: resolveLabel(AUCTION_TYPE_LABELS, dto.main?.auc_type),
+    createdAt: formatDateTime(dto.main?.created_at),
+    assemblyNum: formatText(dto.assembly?.num),
+    organizer: mapOrganizer(dto.organizer),
+    contacts: restrictions.hidePointsAddressAndContacts ? [] : (dto.contacts ?? []).map(mapContact),
+    contactsHidden: restrictions.hidePointsAddressAndContacts,
+    points: (dto.routes ?? []).map((point, index) =>
+      mapRoutePoint(point, index, restrictions.hidePointsAddressAndContacts),
     ),
     cargo: mapCargo(dto.cargo, restrictions.noViewCargoPrice),
-    trading: mapTrading(dto.trading),
-    organizer: mapOrganizer(dto.organizer, restrictions.hidePointsAddressAndContacts),
-    vehicleRequirements: mapVehicleRequirements(dto.vehicle_requirements),
-    paymentConditions: mapPaymentConditions(dto.payment_conditions),
+    trading,
+    payment: mapPayment(dto.payment),
     restrictions,
     primaryAction: resolvePrimaryAction({
-      canSetBet: dto.trading.can_set_bet,
-      hasMyBet: dto.trading.has_my_bet,
+      canSetBet: trading.canSetBet,
+      hasMyBet: trading.hasMyBet,
       betsHidden: restrictions.hideBetsHistory,
     }),
   };
 }
 
-export function mapBet(dto: BetDto): BetVm {
+export function mapBet(
+  dto: BetItemDto,
+  ownOrganizationId: number | null,
+  placesHidden: boolean,
+): BetVm {
+  const priceInfo = dto.price_info;
+  const isRejected = dto.is_rejected === true;
+
   return {
-    uuid: dto.uuid,
-    priceWithVat: formatPrice(dto.price_with_vat),
-    priceWithoutVat: formatPrice(dto.price_without_vat),
-    carrierName: dto.carrier.name,
-    carrierInn: formatText(dto.carrier.inn),
-    rank: dto.is_cancelled ? EMPTY_VALUE : formatNumber(dto.rank),
-    isWinner: dto.is_winner,
-    isCancelled: dto.is_cancelled,
+    key: String(dto.id ?? `${dto.organization_id}-${dto.created_at}`),
+    priceWithVat: formatPrice(dto.price_with_vat ?? priceInfo?.price_with_vat),
+    priceNoVat: formatPrice(dto.price_no_vat ?? priceInfo?.price_no_vat),
+    organizationName: formatText(dto.organization_name),
+    organizationInn: formatText(dto.organization_inn),
+    place: placesHidden || isRejected ? EMPTY_VALUE : formatNumber(dto.place),
+    placeHidden: placesHidden,
+    isWin: dto.is_win === true,
+    isRejected,
+    isCounter: dto.is_counter === true,
     cancelReason: formatText(dto.cancel_reason),
-    isMy: dto.is_my === true,
+    isMy: ownOrganizationId !== null && dto.organization_id === ownOrganizationId,
     createdAt: formatDateTime(dto.created_at),
+    comment: formatText(dto.transporter_comment),
   };
 }
 
-export function mapBets(dto: BetsResponseDto): BetsVm {
+interface MapBetsOptions {
+  hidden: boolean;
+  placesHidden: boolean;
+  ownOrganizationId: number | null;
+}
+
+export function mapBets(dto: BetListResponseDto, options: MapBetsOptions): BetsVm {
+  const bets = dto.bets ?? [];
+
+  // participants_count в схеме нет: считаем по уникальным organization_id непроигранных ставок
+  const participants = new Set(
+    bets.filter((bet) => bet.is_rejected !== true).map((bet) => bet.organization_id),
+  );
+
   return {
-    hidden: dto.hide_bets_history,
-    participantsCount: dto.participants_count,
-    items: dto.hide_bets_history ? [] : dto.items.map(mapBet),
+    hidden: options.hidden,
+    placesHidden: options.placesHidden,
+    participantsCount: participants.size,
+    items: options.hidden
+      ? []
+      : bets.map((bet) => mapBet(bet, options.ownOrganizationId, options.placesHidden)),
   };
+}
+
+export function findOwnOrganizationId(dto: AuctionShowResponseDto): number | null {
+  const main = (dto.admitted_organizations ?? []).find(
+    (organization) => organization.is_main === true,
+  );
+
+  return main?.id ?? null;
 }

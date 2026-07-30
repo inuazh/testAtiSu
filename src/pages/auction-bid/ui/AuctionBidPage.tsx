@@ -41,6 +41,7 @@ export function AuctionBidPage() {
   }
 
   const auction = query.data;
+  const { trading } = auction;
 
   return (
     <div className="flex max-w-2xl flex-col gap-4">
@@ -56,29 +57,32 @@ export function AuctionBidPage() {
           Ставка по заявке {auction.cargoNum}
         </h1>
         <div className="mt-2 flex flex-wrap gap-2">
-          <Badge variant={auction.statusTone}>{auction.statusLabel}</Badge>
+          <Badge variant={trading.auctionStatusTone}>{trading.auctionStatusLabel}</Badge>
           <Badge variant="info">{auction.aucTypeLabel}</Badge>
-          <Badge variant={auction.trading.statusTone}>{auction.trading.statusLabel}</Badge>
+          <Badge variant={trading.statusTone}>{trading.statusLabel}</Badge>
         </div>
       </header>
 
       <Card title="Параметры торгов">
         <DataList
           rows={[
-            { label: 'Текущая цена', value: auction.trading.currentPrice },
-            { label: 'Доступная цена', value: auction.trading.availablePrice },
-            { label: 'Шаг ставки', value: auction.trading.step },
-            { label: 'Минимум', value: auction.trading.min },
-            { label: 'Максимум', value: auction.trading.max },
+            { label: 'Текущая цена', value: trading.currentPrice.withVat },
+            { label: 'Текущая цена без НДС', value: trading.currentPrice.noVat },
+            { label: 'Доступная цена', value: trading.availablePrice.withVat },
+            { label: 'Доступная цена без НДС', value: trading.availablePrice.noVat },
+            { label: 'Шаг ставки', value: trading.step.withVat },
+            { label: 'Минимум', value: trading.minPrice.withVat },
+            { label: 'Максимум', value: trading.maxPrice.withVat },
+            { label: 'Единица измерения', value: trading.bidMeasurementLabel },
             {
               label: 'Моя ставка',
-              value: auction.trading.hasMyBet ? auction.trading.myBetPrice : 'Ставка не сделана',
+              value: trading.hasMyBet ? trading.myBetWithVat : 'Ставка не сделана',
             },
           ]}
         />
       </Card>
 
-      <Card title={auction.trading.hasMyBet ? 'Изменить ставку' : 'Сделать ставку'}>
+      <Card title={trading.hasMyBet ? 'Изменить ставку' : 'Сделать ставку'}>
         <CreateBetForm auction={auction} onDone={goToDetail} />
       </Card>
     </div>

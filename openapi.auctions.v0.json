@@ -13,9 +13,7 @@
   "paths": {
     "/auctions/list": {
       "post": {
-        "tags": [
-          "Auctions"
-        ],
+        "tags": ["Auctions"],
         "summary": "Список аукционов",
         "description": "Получение списка аукционов с заданными фильтрами",
         "operationId": "listAuctions",
@@ -54,9 +52,7 @@
     },
     "/auctions/{auctionUuid}": {
       "get": {
-        "tags": [
-          "Auctions"
-        ],
+        "tags": ["Auctions"],
         "summary": "Данные аукциона",
         "description": "Получение подробных данных аукциона",
         "operationId": "getAuction",
@@ -97,9 +93,7 @@
     },
     "/auctions/{auctionUuid}/bets": {
       "get": {
-        "tags": [
-          "Auctions"
-        ],
+        "tags": ["Auctions"],
         "summary": "Список ставок аукциона",
         "description": "Запрос вернет список ставок, которые были сделаны в этом аукционе",
         "operationId": "listBets",
@@ -148,9 +142,7 @@
         }
       },
       "post": {
-        "tags": [
-          "Auctions"
-        ],
+        "tags": ["Auctions"],
         "summary": "Установить ставку",
         "description": "Установить ставку в аукционе",
         "operationId": "setBet",
@@ -500,13 +492,7 @@
             "description": "Тип аукциона:\n\n* **Request** — заявочный (1)\n* **Up** — на повышение (2)\n* **Down** — на понижение (3)\n* **FixPrice** — фиксированная цена (4)\n* **Unknown** — неизвестный тип\n",
             "type": "string",
             "example": "Down",
-            "enum": [
-              "Request",
-              "Up",
-              "Down",
-              "FixPrice",
-              "Unknown"
-            ]
+            "enum": ["Request", "Up", "Down", "FixPrice", "Unknown"]
           },
           "order_uid": {
             "type": "string",
@@ -649,14 +635,7 @@
             "description": "Торговый статус пользователя в аукционе:\n\n* **NotParticipating** — не участвует (1)\n* **Leading** — лидирует (2)\n* **Losing** — перебит (3)\n* **Winner** — победитель (4)\n* **Confirmed** — подтверждён (5)\n* **Unknown** — неизвестный статус\n",
             "type": "string",
             "example": "NotParticipating",
-            "enum": [
-              "NotParticipating",
-              "Leading",
-              "Losing",
-              "Winner",
-              "Confirmed",
-              "Unknown"
-            ]
+            "enum": ["NotParticipating", "Leading", "Losing", "Winner", "Confirmed", "Unknown"]
           },
           "start_time": {
             "type": "string",
@@ -673,11 +652,7 @@
             "type": "string",
             "example": "PerRoute",
             "nullable": true,
-            "enum": [
-              "PerRoute",
-              "PerKm",
-              "Unknown"
-            ]
+            "enum": ["PerRoute", "PerKm", "Unknown"]
           },
           "can_set_bet": {
             "type": "boolean",
@@ -841,10 +816,7 @@
             "nullable": true,
             "additionalProperties": {
               "type": "string",
-              "enum": [
-                "asc",
-                "desc"
-              ]
+              "enum": ["asc", "desc"]
             }
           },
           "status": {
@@ -864,10 +836,7 @@
                 "Unknown"
               ]
             },
-            "example": [
-              "Leading",
-              "Losing"
-            ]
+            "example": ["Leading", "Losing"]
           },
           "mobile_statuses": {
             "description": "Фильтр по торговому статусу пользователя (числовые значения)",
@@ -875,10 +844,7 @@
             "items": {
               "type": "integer"
             },
-            "example": [
-              2,
-              3
-            ]
+            "example": [2, 3]
           },
           "statuses": {
             "description": "Фильтр по статусу аукциона (числовые значения: 1–7)",
@@ -886,9 +852,7 @@
             "items": {
               "type": "integer"
             },
-            "example": [
-              2
-            ]
+            "example": [2]
           },
           "cargo_num": {
             "description": "Номер заявки",
@@ -921,10 +885,7 @@
             "items": {
               "type": "string"
             },
-            "example": [
-              "тентованный",
-              "фургон"
-            ]
+            "example": ["тентованный", "фургон"]
           },
           "form_type": {
             "description": "Тип формы",
@@ -1063,10 +1024,7 @@
             "items": {
               "type": "integer"
             },
-            "example": [
-              330,
-              340
-            ]
+            "example": [330, 340]
           },
           "contractor": {
             "description": "Поиск по перевозчику",
@@ -1080,10 +1038,7 @@
             "items": {
               "type": "integer"
             },
-            "example": [
-              1224,
-              1236
-            ]
+            "example": [1224, 1236]
           },
           "replace_external_pads": {
             "description": "Заменять внешние площадки",
@@ -1124,17 +1079,9 @@
             "type": "array",
             "items": {
               "type": "string",
-              "enum": [
-                "Request",
-                "Up",
-                "Down",
-                "FixPrice"
-              ]
+              "enum": ["Request", "Up", "Down", "FixPrice"]
             },
-            "example": [
-              "Request",
-              "Up"
-            ]
+            "example": ["Request", "Up"]
           }
         },
         "type": "object"
@@ -1661,13 +1608,7 @@
         "description": "Тип аукциона:\n- `Request` — заявочный (1)\n- `Up` — на повышение (2)\n- `Down` — на понижение (3)\n- `FixPrice` — фиксированная цена (4)\n- `Unknown` — неизвестный тип",
         "type": "string",
         "example": "Down",
-        "enum": [
-          "Request",
-          "Up",
-          "Down",
-          "FixPrice",
-          "Unknown"
-        ]
+        "enum": ["Request", "Up", "Down", "FixPrice", "Unknown"]
       },
       "BetItem": {
         "properties": {
@@ -1799,9 +1740,7 @@
         "type": "object"
       },
       "BetListResponse": {
-        "required": [
-          "bets"
-        ],
+        "required": ["bets"],
         "properties": {
           "bets": {
             "type": "array",
@@ -1816,11 +1755,7 @@
         "description": "Единица измерения ставки:\n- `PerRoute` — за рейс (0)\n- `PerKm` — за км (1)\n- `Unknown` — неизвестный тип",
         "type": "string",
         "example": "PerRoute",
-        "enum": [
-          "PerRoute",
-          "PerKm",
-          "Unknown"
-        ]
+        "enum": ["PerRoute", "PerKm", "Unknown"]
       },
       "CarRequirements": {
         "description": "Требования к ТС; null если не заданы",
@@ -1939,30 +1874,18 @@
         "description": "Тип операции маршрутной точки:\n- `Loading` — погрузка (1)\n- `Unloading` — выгрузка (2)\n- `Unknown` — неизвестный тип",
         "type": "string",
         "example": "Loading",
-        "enum": [
-          "Loading",
-          "Unloading",
-          "Unknown"
-        ]
+        "enum": ["Loading", "Unloading", "Unknown"]
       },
       "PaymentDelayType": {
         "description": "Тип отсрочки платежа:\n- `CalendarDays` — календарные дни (1)\n- `WorkDays` — рабочие дни (2)\n- `Unknown` — неизвестный тип",
         "type": "string",
         "example": "CalendarDays",
         "nullable": true,
-        "enum": [
-          "CalendarDays",
-          "WorkDays",
-          "Unknown"
-        ]
+        "enum": ["CalendarDays", "WorkDays", "Unknown"]
       },
       "ProblemDetail": {
         "description": "Единый формат ошибки API (см. error-response-guideline.md). HTTP-код — в статус-строке ответа, в теле не дублируется.",
-        "required": [
-          "code",
-          "title",
-          "message"
-        ],
+        "required": ["code", "title", "message"],
         "properties": {
           "code": {
             "description": "Машиночитаемый код (snake_case), стабилен между релизами",
@@ -2121,9 +2044,7 @@
         "type": "object"
       },
       "SetBetRequest": {
-        "required": [
-          "price"
-        ],
+        "required": ["price"],
         "properties": {
           "price": {
             "description": "Цена ставки (> 0)",
@@ -2151,10 +2072,7 @@
       },
       "ValidationError": {
         "description": "Ошибка по конкретному полю запроса",
-        "required": [
-          "field",
-          "message"
-        ],
+        "required": ["field", "message"],
         "properties": {
           "field": {
             "description": "Путь к полю (snake_case, вложенные — через точку)",
@@ -2176,12 +2094,7 @@
       },
       "ValidationProblem": {
         "description": "Ошибка валидации входных данных (422). Отличается от бизнес-ошибки кодом `validation_failed` и наличием `errors[]`.",
-        "required": [
-          "code",
-          "title",
-          "message",
-          "errors"
-        ],
+        "required": ["code", "title", "message", "errors"],
         "properties": {
           "code": {
             "type": "string",

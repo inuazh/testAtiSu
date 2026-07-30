@@ -1,6 +1,21 @@
-import type { ErrorDto, ValidationErrorItemDto, ValidationErrorResponseDto } from './dto';
+import type { ProblemDetailDto, ValidationErrorDto, ValidationProblemDto } from './dto';
 
-export const API_BASE_URL = '/api';
+export const API_BASE_URL = '/api/v1';
+
+export const HTTP_STATUS = {
+  Unauthorized: 401,
+  Forbidden: 403,
+  NotFound: 404,
+  ValidationFailed: 422,
+  ServiceUnavailable: 503,
+} as const;
+
+const STATUS_MESSAGES: Record<number, string> = {
+  [HTTP_STATUS.Unauthorized]: 'Сессия истекла или токен недействителен. Войдите заново.',
+  [HTTP_STATUS.NotFound]: 'Ресурс не найден.',
+  [HTTP_STATUS.ServiceUnavailable]:
+    'Сервис временно недоступен. Попробуйте повторить запрос через минуту.',
+};
 
 export class ApiError extends Error {
   status: number;
@@ -18,46 +33,66 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function isErrorDto(value: unknown): value is ErrorDto {
-  return isRecord(value) && typeof value.code === 'string' && typeof value.message === 'string';
+function isProblemDetail(value: unknown): value is ProblemDetailDto {
+  return isRecord(value) && typeof value.message === 'string';
 }
 
-function isValidationErrorResponse(value: unknown): value is ValidationErrorResponseDto {
-  if (!isRecord(value) || !Array.isArray(value.detail)) {
+function isValidationProblem(value: unknown): value is ValidationProblemDto {
+  if (!isRecord(value) || !Array.isArray(value.errors)) {
     return false;
   }
 
-  return value.detail.every(
-    (item) =>
-      isRecord(item) &&
-      Array.isArray(item.loc) &&
-      typeof item.msg === 'string' &&
-      typeof item.type === 'string',
+  return value.errors.every(
+    (item) => isRecord(item) && typeof item.field === 'string' && typeof item.message === 'string',
   );
 }
 
-export function getValidationDetail(error: unknown): ValidationErrorItemDto[] | null {
-  if (!(error instanceof ApiError) || error.status !== 422) {
+export function isUnauthorized(error: unknown): boolean {
+  return error instanceof ApiError && error.status === HTTP_STATUS.Unauthorized;
+}
+
+export function isServiceUnavailable(error: unknown): boolean {
+  return error instanceof ApiError && error.status === HTTP_STATUS.ServiceUnavailable;
+}
+
+export function getValidationErrors(error: unknown): ValidationErrorDto[] | null {
+  if (!(error instanceof ApiError) || error.status !== HTTP_STATUS.ValidationFailed) {
     return null;
   }
 
-  return isValidationErrorResponse(error.body) ? error.body.detail : null;
+  return isValidationProblem(error.body) ? (error.body.errors ?? []) : null;
 }
 
 export function getErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    const detail = getValidationDetail(error);
-
-    if (detail && detail.length > 0) {
-      return detail.map((item) => item.msg).join('; ');
-    }
-
-    if (isErrorDto(error.body)) {
-      return error.body.message;
-    }
+  if (!(error instanceof ApiError)) {
+    return error instanceof Error ? error.message : 'Неизвестная ошибка';
   }
 
-  return error instanceof Error ? error.message : 'Неизвестная ошибка';
+  const statusMessage = STATUS_MESSAGES[error.status];
+
+  if (statusMessage !== undefined) {
+    return statusMessage;
+  }
+
+  const validationErrors = getValidationErrors(error);
+
+  if (validationErrors !== null && validationErrors.length > 0) {
+    return validationErrors.map((item) => item.message).join('; ');
+  }
+
+  if (isProblemDetail(error.body) && error.body.message !== undefined) {
+    return error.body.message;
+  }
+
+  return `Запрос завершился ошибкой ${error.status}`;
+}
+
+export function isRetriableError(error: unknown): boolean {
+  if (!(error instanceof ApiError)) {
+    return true;
+  }
+
+  return error.status >= 500;
 }
 
 async function parseBody(response: Response): Promise<unknown> {
@@ -102,7 +137,6 @@ export async function apiRequest<TResponse>(
   }
 
   const response = await fetch(resolveUrl(path), init);
-
   const parsed = await parseBody(response);
 
   if (!response.ok) {

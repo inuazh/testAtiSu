@@ -1,9 +1,14 @@
 import { HttpResponse, http, type RequestHandler } from 'msw';
 import { API_BASE_URL } from '../client';
-import type { AuctionListRequestDto, CreateBetRequestDto, ErrorDto } from '../dto';
+import type { AuctionListRequestDto, ProblemDetailDto, SetBetRequestDto } from '../dto';
 import { mockStore } from './store';
 
-const NOT_FOUND: ErrorDto = { code: 'not_found', message: 'Аукцион не найден' };
+const NOT_FOUND: ProblemDetailDto = {
+  code: 'not_found',
+  title: 'Не найдено',
+  message: 'Аукцион не найден',
+  trace_id: null,
+};
 
 export const handlers: RequestHandler[] = [
   http.post(`${API_BASE_URL}/auctions/list`, async ({ request }) => {
@@ -25,21 +30,17 @@ export const handlers: RequestHandler[] = [
   }),
 
   http.post(`${API_BASE_URL}/auctions/:auctionUuid/bets`, async ({ params, request }) => {
-    const body = (await request.json()) as CreateBetRequestDto;
-    const result = mockStore.createBet(String(params.auctionUuid), body);
+    const body = (await request.json()) as SetBetRequestDto;
+    const result = mockStore.setBet(String(params.auctionUuid), body);
 
     if (result.kind === 'not_found') {
       return HttpResponse.json(NOT_FOUND, { status: 404 });
     }
 
-    if (result.kind === 'forbidden') {
-      return HttpResponse.json(result.error, { status: 403 });
-    }
-
     if (result.kind === 'validation') {
-      return HttpResponse.json(result.response, { status: 422 });
+      return HttpResponse.json(result.problem, { status: 422 });
     }
 
-    return HttpResponse.json(result.response);
+    return new HttpResponse(null, { status: 200 });
   }),
 ];

@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import type { AuctionDetailVm } from '@/entities/auction';
 import { Button, Field, Input, showErrorToast } from '@/shared/ui';
-import { useCreateBet } from '../api/useCreateBet';
+import { useSetBet } from '../api/useSetBet';
 import { type BetFormInput, type BetFormValues, createBetSchema } from '../model/betSchema';
 
 interface CreateBetFormProps {
@@ -11,36 +11,36 @@ interface CreateBetFormProps {
   onDone: () => void;
 }
 
+function lastPathSegment(field: string): string {
+  const segments = field.split('.');
+
+  return segments[segments.length - 1] ?? field;
+}
+
 export function CreateBetForm({ auction, onDone }: CreateBetFormProps) {
   const limits = auction.trading.limits;
   const schema = useMemo(() => createBetSchema(limits), [limits]);
-
-  const defaultPrice = limits.availablePrice ?? limits.currentPrice;
+  const defaultPrice = limits.available ?? limits.current;
 
   const form = useForm<BetFormInput, unknown, BetFormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      price: defaultPrice === null ? '' : String(defaultPrice),
-      with_vat: true,
-    },
+    defaultValues: { price: defaultPrice === null ? '' : String(defaultPrice) },
   });
 
-  const mutation = useCreateBet(auction.uuid, {
+  const mutation = useSetBet(auction.uuid, {
     onSuccess: onDone,
-    onValidationError: (issues) => {
+    onValidationError: (errors) => {
       let matched = false;
 
-      for (const issue of issues) {
-        const field = issue.loc[issue.loc.length - 1];
-
-        if (field === 'price' || field === 'with_vat') {
-          form.setError(field, { type: 'server', message: issue.msg });
+      for (const error of errors) {
+        if (lastPathSegment(error.field ?? '') === 'price') {
+          form.setError('price', { type: 'server', message: error.message });
           matched = true;
         }
       }
 
       if (!matched) {
-        showErrorToast(issues.map((issue) => issue.msg).join('; '));
+        showErrorToast(errors.map((error) => error.message).join('; '));
       }
     },
   });
@@ -54,20 +54,22 @@ export function CreateBetForm({ auction, onDone }: CreateBetFormProps) {
   }
 
   const onSubmit = form.handleSubmit((values) => {
-    mutation.mutate({ price: values.price, with_vat: values.with_vat });
+    mutation.mutate({ price: values.price });
   });
 
   return (
     <form className="flex flex-col gap-4" onSubmit={(event) => void onSubmit(event)} noValidate>
       <Field
-        label="Цена ставки"
+        label="Цена ставки, с НДС"
         htmlFor="bet-price"
         error={form.formState.errors.price?.message}
         hint={
           <>
-            Доступная цена: {auction.trading.availablePrice} · шаг: {auction.trading.step}
+            Доступная цена: {auction.trading.availablePrice.withVat} (
+            {auction.trading.availablePrice.noVat} без НДС)
             <br />
-            Диапазон: {auction.trading.min} — {auction.trading.max}
+            Шаг: {auction.trading.step.withVat} · диапазон: {auction.trading.minPrice.withVat} —{' '}
+            {auction.trading.maxPrice.withVat}
           </>
         }
       >
@@ -79,11 +81,6 @@ export function CreateBetForm({ auction, onDone }: CreateBetFormProps) {
           {...form.register('price')}
         />
       </Field>
-
-      <label className="flex items-center gap-2 text-sm text-slate-700">
-        <input type="checkbox" className="size-4" {...form.register('with_vat')} />
-        Цена указана с НДС
-      </label>
 
       <div className="flex items-center gap-2">
         <Button type="submit" disabled={mutation.isPending}>

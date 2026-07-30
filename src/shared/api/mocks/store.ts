@@ -1,286 +1,285 @@
 import type {
-  AuctionListItemDto,
   AuctionListRequestDto,
   AuctionListResponseDto,
-  BetDto,
-  BetsResponseDto,
-  CreateBetRequestDto,
-  CreateBetResponseDto,
-  ErrorDto,
-  ValidationErrorResponseDto,
+  AuctionShowResponseDto,
+  BetItemDto,
+  BetListResponseDto,
+  SetBetRequestDto,
+  ValidationErrorDto,
+  ValidationProblemDto,
 } from '../dto';
-import { AUC_TYPE, ROUTE_POINT_KIND } from '../enums';
-import { CURRENT_CARRIER, recalculate, toPriceWithoutVat, toPriceWithVat } from './betting';
-import { createInitialRecords } from './fixtures';
-import { createRng, pick } from './random';
-import type { MockAuctionRecord } from './types';
+import { AUCTION_TYPE } from '../enums';
+import {
+  CURRENT_ORGANIZATION,
+  ownActiveBet,
+  priceBounds,
+  recalculate,
+  toPriceNoVat,
+} from './betting';
+import { createInitialAuctions } from './fixtures';
+import { toBetList, toDetail, toListItem } from './projections';
+import type { MockAuction } from './types';
 
-export type CreateBetResult =
-  | { kind: 'ok'; response: CreateBetResponseDto }
+export type SetBetResult =
+  | { kind: 'ok' }
   | { kind: 'not_found' }
-  | { kind: 'forbidden'; error: ErrorDto }
-  | { kind: 'validation'; response: ValidationErrorResponseDto };
+  | { kind: 'validation'; problem: ValidationProblemDto };
 
-let records: MockAuctionRecord[] = createInitialRecords();
-const uuidRng = createRng(20260729);
+const DEFAULT_PER_PAGE = 20;
+const MAX_PER_PAGE = 100;
 
-function findRecord(auctionUuid: string): MockAuctionRecord | undefined {
-  return records.find((record) => record.detail.uuid === auctionUuid);
+let auctions: MockAuction[] = createInitialAuctions();
+let nextBetId = 90000;
+
+function findAuction(auctionUuid: string): MockAuction | undefined {
+  return auctions.find((auction) => auction.uuid === auctionUuid);
 }
 
-function toListItem(record: MockAuctionRecord): AuctionListItemDto {
-  const { detail } = record;
-  const loadPoint = detail.points.find((point) => point.kind === ROUTE_POINT_KIND.Load);
-  const unloadPoints = detail.points.filter((point) => point.kind === ROUTE_POINT_KIND.Unload);
-  const unloadPoint = unloadPoints[unloadPoints.length - 1];
+function includesText(haystack: string, needle: string): boolean {
+  return haystack.toLowerCase().includes(needle.trim().toLowerCase());
+}
 
-  if (loadPoint === undefined || unloadPoint === undefined) {
-    throw new Error(`У аукциона ${detail.uuid} нет точек погрузки или выгрузки`);
+function matches(auction: MockAuction, request: AuctionListRequestDto): boolean {
+  const item = toListItem(auction);
+  const load = item.route?.load;
+  const unload = item.route?.unload;
+
+  if (request.cargo_num !== undefined && !includesText(auction.cargoNum, request.cargo_num)) {
+    return false;
   }
 
-  return {
-    uuid: detail.uuid,
-    cargo_num: detail.cargo_num,
-    auc_type: detail.auc_type,
-    status: detail.status,
-    load_point: loadPoint,
-    unload_point: unloadPoint,
-    cargo: detail.cargo,
-    trading: detail.trading,
-    distance_km: detail.distance_km ?? null,
-  };
-}
+  if (request.status !== undefined && request.status.length > 0) {
+    if (!request.status.includes(auction.tradingStatus)) {
+      return false;
+    }
+  }
 
-function matchesFilters(item: AuctionListItemDto, request: AuctionListRequestDto): boolean {
-  const filters = request.filters;
+  if (request.statuses !== undefined && request.statuses.length > 0) {
+    if (auction.statusCode === null || !request.statuses.includes(auction.statusCode)) {
+      return false;
+    }
+  }
 
-  if (!filters) {
-    return true;
+  if (request.auc_type !== undefined && request.auc_type.length > 0) {
+    if (!request.auc_type.some((value) => value === auction.aucType)) {
+      return false;
+    }
+  }
+
+  if (request.load_city !== undefined && !includesText(load?.city ?? '', request.load_city)) {
+    return false;
+  }
+
+  if (request.unload_city !== undefined && !includesText(unload?.city ?? '', request.unload_city)) {
+    return false;
+  }
+
+  const loadDate = Date.parse(load?.date ?? '');
+
+  if (request.load_date_from !== undefined && loadDate < Date.parse(request.load_date_from)) {
+    return false;
+  }
+
+  if (request.load_date_to !== undefined && loadDate > Date.parse(request.load_date_to)) {
+    return false;
+  }
+
+  if (request.is_available !== undefined && request.is_available !== auction.canSetBet) {
+    return false;
   }
 
   if (
-    filters.cargo_num &&
-    !item.cargo_num.toLowerCase().includes(filters.cargo_num.trim().toLowerCase())
+    request.is_bidder !== undefined &&
+    request.is_bidder !== (ownActiveBet(auction) !== undefined)
   ) {
     return false;
   }
 
-  if (filters.status && item.status !== filters.status) {
+  if (request.is_favorite !== undefined && request.is_favorite !== auction.isFavorite) {
     return false;
   }
 
-  if (filters.statuses && filters.statuses.length > 0 && !filters.statuses.includes(item.status)) {
+  const current = auction.currentPrice ?? auction.startPrice;
+  const from = request.current_price_from;
+  const to = request.current_price_to;
+
+  if (from !== undefined && from !== null && current < from) {
     return false;
   }
 
-  if (filters.auc_type && item.auc_type !== filters.auc_type) {
+  if (to !== undefined && to !== null && current > to) {
     return false;
-  }
-
-  if (filters.load_city && item.load_point.city.id !== filters.load_city) {
-    return false;
-  }
-
-  if (filters.unload_city && item.unload_point.city.id !== filters.unload_city) {
-    return false;
-  }
-
-  const loadDay = item.load_point.date.slice(0, 10);
-
-  if (filters.load_date_from && loadDay < filters.load_date_from) {
-    return false;
-  }
-
-  if (filters.load_date_to && loadDay > filters.load_date_to) {
-    return false;
-  }
-
-  if (filters.is_available === true && !item.trading.can_set_bet) {
-    return false;
-  }
-
-  if (filters.is_available === false && item.trading.can_set_bet) {
-    return false;
-  }
-
-  if (filters.is_bidder === true && !item.trading.has_my_bet) {
-    return false;
-  }
-
-  if (filters.is_bidder === false && item.trading.has_my_bet) {
-    return false;
-  }
-
-  const price = item.trading.current_price;
-
-  if (filters.price_from !== undefined && filters.price_from !== null) {
-    if (price === null || price < filters.price_from) {
-      return false;
-    }
-  }
-
-  if (filters.price_to !== undefined && filters.price_to !== null) {
-    if (price === null || price > filters.price_to) {
-      return false;
-    }
   }
 
   return true;
 }
 
-function validationError(field: string, msg: string, type: string): ValidationErrorResponseDto {
-  return { detail: [{ loc: ['body', field], msg, type }] };
-}
-
-function makeBetUuid(): string {
-  const hex = '0123456789abcdef'.split('');
-  let raw = '';
-
-  for (let i = 0; i < 32; i += 1) {
-    raw += pick(uuidRng, hex);
-  }
-
-  return [
-    raw.slice(0, 8),
-    raw.slice(8, 12),
-    `4${raw.slice(13, 16)}`,
-    `8${raw.slice(17, 20)}`,
-    raw.slice(20, 32),
-  ].join('-');
+function validationProblem(errors: ValidationErrorDto[]): ValidationProblemDto {
+  return {
+    code: 'validation_failed',
+    title: 'Ошибка валидации',
+    message: 'Проверьте правильность заполнения полей',
+    trace_id: `trace-${Date.now()}`,
+    errors,
+  };
 }
 
 export const mockStore = {
   reset(): void {
-    records = createInitialRecords();
+    auctions = createInitialAuctions();
+    nextBetId = 90000;
   },
 
   list(request: AuctionListRequestDto): AuctionListResponseDto {
-    const matched = records.map(toListItem).filter((item) => matchesFilters(item, request));
+    const matched = auctions.filter((auction) => matches(auction, request));
 
-    const page = Math.max(1, request.page);
-    const limit = Math.min(Math.max(1, request.limit), 100);
-    const offset = (page - 1) * limit;
+    const perPage = Math.min(Math.max(1, request.per_page ?? DEFAULT_PER_PAGE), MAX_PER_PAGE);
+    const lastPage = Math.max(1, Math.ceil(matched.length / perPage));
+    const currentPage = Math.min(Math.max(1, request.page ?? 1), lastPage);
+    const offset = (currentPage - 1) * perPage;
+    const pageItems = matched.slice(offset, offset + perPage);
 
     return {
-      items: matched.slice(offset, offset + limit),
-      total: matched.length,
-      page,
-      limit,
+      data: pageItems.map(toListItem),
+      meta: {
+        current_page: currentPage,
+        from: matched.length === 0 ? 0 : offset + 1,
+        last_page: lastPage,
+        per_page: perPage,
+        to: offset + pageItems.length,
+        total: matched.length,
+      },
     };
   },
 
-  detail(auctionUuid: string) {
-    return findRecord(auctionUuid)?.detail;
+  detail(auctionUuid: string): AuctionShowResponseDto | undefined {
+    const auction = findAuction(auctionUuid);
+
+    return auction === undefined ? undefined : toDetail(auction);
   },
 
-  bets(auctionUuid: string): BetsResponseDto | undefined {
-    const record = findRecord(auctionUuid);
+  bets(auctionUuid: string): BetListResponseDto | undefined {
+    const auction = findAuction(auctionUuid);
 
-    if (!record) {
+    if (auction === undefined) {
       return undefined;
     }
 
-    const hidden = record.detail.restrictions.hide_bets_history;
-    const participants = new Set(
-      record.bets.filter((bet) => !bet.is_cancelled).map((bet) => bet.carrier.uuid),
-    );
-
-    return {
-      items: hidden ? [] : [...record.bets].sort((a, b) => a.rank - b.rank),
-      participants_count: participants.size,
-      hide_bets_history: hidden,
-    };
+    return { bets: auction.hideBetsHistory ? [] : toBetList(auction) };
   },
 
-  createBet(auctionUuid: string, request: CreateBetRequestDto): CreateBetResult {
-    const record = findRecord(auctionUuid);
+  setBet(auctionUuid: string, request: SetBetRequestDto): SetBetResult {
+    const auction = findAuction(auctionUuid);
 
-    if (!record) {
+    if (auction === undefined) {
       return { kind: 'not_found' };
     }
 
-    const { trading, auc_type: aucType } = record.detail;
-
-    if (!trading.can_set_bet) {
-      return {
-        kind: 'forbidden',
-        error: { code: 'bets_not_allowed', message: 'Ставки по этому аукциону недоступны' },
-      };
-    }
-
-    if (!Number.isFinite(request.price) || request.price <= 0) {
+    if (!auction.canSetBet) {
       return {
         kind: 'validation',
-        response: validationError('price', 'Цена должна быть больше 0', 'value_error.number.gt'),
+        problem: validationProblem([
+          {
+            field: 'trading.can_set_bet',
+            message: 'Ставки по этому аукциону недоступны',
+            code: 'bets_not_allowed',
+          },
+        ]),
       };
     }
 
-    const priceWithVat = request.with_vat ? request.price : toPriceWithVat(request.price);
+    const price = request.price;
 
-    if (trading.min !== undefined && trading.min !== null && priceWithVat < trading.min) {
+    if (price === undefined || !Number.isFinite(price) || price <= 0) {
       return {
         kind: 'validation',
-        response: validationError(
-          'price',
-          `Цена не может быть меньше ${trading.min}`,
-          'value_error.number.ge',
-        ),
+        problem: validationProblem([
+          { field: 'price', message: 'Цена должна быть больше 0', code: 'price_gt' },
+        ]),
       };
     }
 
-    if (trading.max !== undefined && trading.max !== null && priceWithVat > trading.max) {
+    const bounds = priceBounds(auction);
+
+    if (bounds.min !== null && price < bounds.min) {
       return {
         kind: 'validation',
-        response: validationError(
-          'price',
-          `Цена не может быть больше ${trading.max}`,
-          'value_error.number.le',
-        ),
+        problem: validationProblem([
+          { field: 'price', message: `Цена не может быть меньше ${bounds.min}`, code: 'price_min' },
+        ]),
       };
     }
 
-    const step = trading.step;
-
-    if (step !== undefined && step !== null && step > 0 && aucType !== AUC_TYPE.FixPrice) {
-      const current = trading.current_price;
-
-      if (current !== null && Math.abs(priceWithVat - current) % step !== 0) {
-        return {
-          kind: 'validation',
-          response: validationError(
-            'price',
-            `Цена должна отличаться от текущей на кратное шагу ${step}`,
-            'value_error.number.step',
-          ),
-        };
-      }
+    if (bounds.max !== null && price > bounds.max) {
+      return {
+        kind: 'validation',
+        problem: validationProblem([
+          { field: 'price', message: `Цена не может быть больше ${bounds.max}`, code: 'price_max' },
+        ]),
+      };
     }
 
-    const now = new Date();
+    const step = auction.step;
+    const current = auction.currentPrice;
 
-    for (const bet of record.bets) {
-      if (bet.is_my === true && !bet.is_cancelled) {
-        bet.is_cancelled = true;
+    if (
+      step !== null &&
+      step > 0 &&
+      current !== null &&
+      auction.aucType !== AUCTION_TYPE.FixPrice &&
+      Math.abs(price - current) % step !== 0
+    ) {
+      return {
+        kind: 'validation',
+        problem: validationProblem([
+          {
+            field: 'price',
+            message: `Цена должна отличаться от текущей на кратное шагу ${step}`,
+            code: 'price_step',
+          },
+        ]),
+      };
+    }
+
+    for (const bet of auction.bets) {
+      if (bet.organization_id === CURRENT_ORGANIZATION.id && bet.is_rejected !== true) {
+        bet.is_rejected = true;
         bet.cancel_reason = 'Заменена новой ставкой';
       }
     }
 
-    const bet: BetDto = {
-      uuid: makeBetUuid(),
-      price_with_vat: priceWithVat,
-      price_without_vat: request.with_vat ? toPriceWithoutVat(request.price) : request.price,
-      carrier: CURRENT_CARRIER,
-      rank: 0,
-      is_winner: false,
-      is_cancelled: false,
-      cancel_reason: null,
-      is_my: true,
-      created_at: now.toISOString(),
+    nextBetId += 1;
+
+    const bet: BetItemDto = {
+      id: nextBetId,
+      created_at: new Date().toISOString(),
+      auction_id: auction.id,
+      subscriber_id: CURRENT_ORGANIZATION.subscriberId,
+      contact_name: 'Логист',
+      contact_phone: '+7 (900) 000-00-00',
+      price_with_vat: price,
+      price_no_vat: toPriceNoVat(price),
+      organization_id: CURRENT_ORGANIZATION.id,
+      organization_inn: CURRENT_ORGANIZATION.inn,
+      organization_name: CURRENT_ORGANIZATION.name,
+      transporter_comment: null,
+      is_rejected: false,
+      is_counter: false,
+      place: null,
+      is_win: false,
+      run_number: auction.bets.length + 1,
+      cancel_reason: '',
+      price_info: {
+        price_with_vat: price,
+        price_no_vat: toPriceNoVat(price),
+        payment_type: auction.paymentForm,
+        vat_rate: '20%',
+      },
     };
 
-    record.bets.push(bet);
-    recalculate(record);
+    auction.bets.push(bet);
+    recalculate(auction);
 
-    return { kind: 'ok', response: { bet, trading: record.detail.trading } };
+    return { kind: 'ok' };
   },
 };

@@ -15,137 +15,181 @@ export interface PrimaryActionVm {
   disabled: boolean;
 }
 
-export interface RoutePointVm {
-  uuid: string;
-  kindLabel: string;
-  cityName: string;
-  regionName: string;
-  address: string;
-  addressHidden: boolean;
-  dateTime: string;
+export interface PriceLimits {
+  current: number | null;
+  available: number | null;
+  min: number | null;
+  max: number | null;
+  step: number | null;
 }
 
-export interface CargoVm {
-  name: string;
-  weight: string;
-  volume: string;
-  bodyTypeLabel: string;
-  price: string;
-  priceHidden: boolean;
+export interface PricePairVm {
+  withVat: string;
+  noVat: string;
 }
 
 export interface TradingVm {
   canSetBet: boolean;
-  currentPrice: string;
-  availablePrice: string;
-  pricePerKm: string;
-  min: string;
-  max: string;
-  step: string;
   statusLabel: string;
   statusTone: BadgeTone;
+  auctionStatusLabel: string;
+  auctionStatusTone: BadgeTone;
+  bidMeasurementLabel: string;
+  startTime: string;
+  stopTime: string;
+  currentPrice: PricePairVm;
+  availablePrice: PricePairVm;
+  minPrice: PricePairVm;
+  maxPrice: PricePairVm;
+  step: PricePairVm;
+  pricePerKm: string;
   hasMyBet: boolean;
-  myBetPrice: string;
-  finishAt: string;
-  limits: {
-    currentPrice: number | null;
-    availablePrice: number | null;
-    min: number | null;
-    max: number | null;
-    step: number | null;
-  };
+  myBetWithVat: string;
+  myBetNoVat: string;
+  isWinner: boolean;
+  limits: PriceLimits;
+}
+
+export interface RestrictionsVm {
+  hideBetsHistory: boolean;
+  hidePlaces: boolean;
+  hidePointsAddressAndContacts: boolean;
+  noViewCargoPrice: boolean;
 }
 
 export interface AuctionListItemVm {
   uuid: string;
+  id: number | null;
   cargoNum: string;
   aucTypeLabel: string;
   statusLabel: string;
   statusTone: BadgeTone;
+  tradingStatusLabel: string;
+  tradingStatusTone: BadgeTone;
   routeFrom: string;
   routeTo: string;
   loadDate: string;
   unloadDate: string;
-  distance: string;
-  cargo: CargoVm;
-  trading: TradingVm;
+  cargoName: string;
+  cargoWeight: string;
+  cargoVolume: string;
+  bodyType: string;
+  currentPrice: string;
+  currentPriceNoVat: string;
+  pricePerKm: string;
+  hasMyBet: boolean;
+  myBetPrice: string;
+  canSetBet: boolean;
+  organizationName: string;
+  organizationHidden: boolean;
   primaryAction: PrimaryActionVm;
 }
 
 export interface AuctionListVm {
   items: AuctionListItemVm[];
+  currentPage: number;
+  lastPage: number;
+  perPage: number;
   total: number;
-  page: number;
-  limit: number;
-  pagesCount: number;
 }
 
-export interface ContactVm {
-  name: string;
-  phone: string;
-  email: string;
+export interface RoutePointVm {
+  key: string;
+  opTypeLabel: string;
+  cityName: string;
+  cityFullName: string;
+  address: string;
+  addressHidden: boolean;
+  startDate: string;
+  endDate: string;
+  comment: string;
+  contractor: string;
+  cargoName: string;
+  packageName: string;
+  weight: string;
+  volume: string;
+  contactName: string;
+  contactPhone: string;
 }
 
 export interface OrganizerVm {
   name: string;
   inn: string;
-  contacts: ContactVm[];
-  contactsHidden: boolean;
+  kpp: string;
+  subscriberCode: string;
 }
 
-export interface VehicleRequirementsVm {
-  bodyTypeLabels: string[];
+export interface ContactVm {
+  key: string;
+  name: string;
+  phone: string;
+  workPhone: string;
+  email: string;
+}
+
+export interface CargoVm {
+  price: string;
+  priceHidden: boolean;
+  bodyType: string;
+  truckCount: string;
+  distance: string;
+  isInternational: boolean;
+  containered: boolean;
   temperature: string;
-  loadingType: string;
-  comment: string;
+  loadingTypes: string;
+  docs: string;
+  carType: string;
+  carCapacity: string;
 }
 
-export interface PaymentConditionsVm {
-  paymentType: string;
-  deferment: string;
-  vatLabel: string;
-}
-
-export interface RestrictionsVm {
-  hideBetsHistory: boolean;
-  hidePointsAddressAndContacts: boolean;
-  noViewCargoPrice: boolean;
+export interface PaymentVm {
+  form: string;
+  condition: string;
+  delay: string;
+  currencyCode: string;
+  prepay: string;
 }
 
 export interface AuctionDetailVm {
   uuid: string;
+  id: number | null;
+  ownOrganizationId: number | null;
   cargoNum: string;
+  cargoDate: string;
   aucTypeLabel: string;
-  statusLabel: string;
-  statusTone: BadgeTone;
-  comment: string;
-  distance: string;
+  createdAt: string;
+  assemblyNum: string;
+  organizer: OrganizerVm;
+  contacts: ContactVm[];
+  contactsHidden: boolean;
   points: RoutePointVm[];
   cargo: CargoVm;
   trading: TradingVm;
-  organizer: OrganizerVm;
-  vehicleRequirements: VehicleRequirementsVm | null;
-  paymentConditions: PaymentConditionsVm | null;
+  payment: PaymentVm;
   restrictions: RestrictionsVm;
   primaryAction: PrimaryActionVm;
 }
 
 export interface BetVm {
-  uuid: string;
+  key: string;
   priceWithVat: string;
-  priceWithoutVat: string;
-  carrierName: string;
-  carrierInn: string;
-  rank: string;
-  isWinner: boolean;
-  isCancelled: boolean;
+  priceNoVat: string;
+  organizationName: string;
+  organizationInn: string;
+  place: string;
+  placeHidden: boolean;
+  isWin: boolean;
+  isRejected: boolean;
+  isCounter: boolean;
   cancelReason: string;
   isMy: boolean;
   createdAt: string;
+  comment: string;
 }
 
 export interface BetsVm {
   hidden: boolean;
+  placesHidden: boolean;
   participantsCount: number;
   items: BetVm[];
 }

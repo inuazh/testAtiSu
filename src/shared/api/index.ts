@@ -1,17 +1,30 @@
-export { API_BASE_URL, ApiError, getErrorMessage, getValidationDetail } from './client';
-export type * from './dto';
-export { createBet, getAuctionBets, getAuctionDetail, getAuctionsList } from './endpoints';
 export {
-  AUC_TYPE,
-  AUC_TYPE_VALUES,
+  API_BASE_URL,
+  ApiError,
+  getErrorMessage,
+  getValidationErrors,
+  HTTP_STATUS,
+  isRetriableError,
+  isServiceUnavailable,
+  isUnauthorized,
+} from './client';
+export type * from './dto';
+export { getAuctionBets, getAuctionDetail, getAuctionsList, setBet } from './endpoints';
+export type { AuctionStatusCode, AuctionTypeFilterValue } from './enums';
+export {
   AUCTION_STATUS,
+  AUCTION_STATUS_BY_CODE,
+  AUCTION_STATUS_CODE,
+  AUCTION_STATUS_CODE_VALUES,
   AUCTION_STATUS_VALUES,
-  BODY_TYPE,
-  BODY_TYPE_VALUES,
-  ROUTE_POINT_KIND,
+  AUCTION_TYPE,
+  AUCTION_TYPE_FILTER_VALUES,
+  AUCTION_TYPE_VALUES,
+  BID_MEASUREMENT_TYPE,
+  OPERATION_TYPE,
+  PAYMENT_DELAY_TYPE,
   TRADING_STATUS,
   TRADING_STATUS_VALUES,
 } from './enums';
-// PROVISIONAL: в схеме нет эндпоинта справочника городов, фильтры берут словарь из мок-слоя
 export { MOCK_CITIES } from './mocks/cities';
 export { auctionKeys } from './queryKeys';

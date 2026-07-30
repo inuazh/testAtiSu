@@ -8,8 +8,10 @@ interface AuctionCardProps {
 }
 
 export function AuctionCard({ auction, onIntent }: AuctionCardProps) {
-  const { trading, primaryAction } = auction;
-  const bidTarget = primaryAction.kind === PRIMARY_ACTION.ViewBets ? 'detail' : 'bid';
+  const { primaryAction } = auction;
+  const goesToBid =
+    primaryAction.kind === PRIMARY_ACTION.CreateBet ||
+    primaryAction.kind === PRIMARY_ACTION.EditBet;
 
   return (
     <article
@@ -27,8 +29,8 @@ export function AuctionCard({ auction, onIntent }: AuctionCardProps) {
         </Link>
         <Badge variant={auction.statusTone}>{auction.statusLabel}</Badge>
         <Badge variant="info">{auction.aucTypeLabel}</Badge>
-        <Badge variant={trading.statusTone}>{trading.statusLabel}</Badge>
-        {trading.hasMyBet && <Badge variant="success">Моя ставка есть</Badge>}
+        <Badge variant={auction.tradingStatusTone}>{auction.tradingStatusLabel}</Badge>
+        {auction.hasMyBet && <Badge variant="success">Моя ставка есть</Badge>}
       </header>
 
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -39,27 +41,29 @@ export function AuctionCard({ auction, onIntent }: AuctionCardProps) {
           <p className="text-xs text-slate-500">
             {auction.loadDate} → {auction.unloadDate}
           </p>
-          <p className="text-xs text-slate-500">{auction.distance}</p>
+          <p className="text-xs text-slate-500">
+            {auction.organizationHidden ? 'Заказчик скрыт' : auction.organizationName}
+          </p>
         </div>
 
         <div>
-          <p className="text-sm text-slate-900">{auction.cargo.name}</p>
+          <p className="text-sm text-slate-900">{auction.cargoName}</p>
           <p className="text-xs text-slate-500">
-            {auction.cargo.weight} · {auction.cargo.volume}
+            {auction.cargoWeight} · {auction.cargoVolume}
           </p>
-          <p className="text-xs text-slate-500">{auction.cargo.bodyTypeLabel}</p>
+          <p className="text-xs text-slate-500">{auction.bodyType}</p>
         </div>
 
         <div className="sm:text-right">
-          <p className="text-base font-semibold text-slate-900">{trading.currentPrice}</p>
-          <p className="text-xs text-slate-500">{trading.pricePerKm}</p>
-          <p className="text-xs text-slate-500">Шаг: {trading.step}</p>
+          <p className="text-base font-semibold text-slate-900">{auction.currentPrice}</p>
+          <p className="text-xs text-slate-500">{auction.currentPriceNoVat} без НДС</p>
+          <p className="text-xs text-slate-500">{auction.pricePerKm}</p>
         </div>
       </div>
 
       <footer className="mt-3 flex items-center justify-between gap-3">
         <p className="text-xs text-slate-500">
-          {trading.hasMyBet ? `Моя ставка: ${trading.myBetPrice}` : 'Своей ставки нет'}
+          {auction.hasMyBet ? `Моя ставка: ${auction.myBetPrice}` : 'Своей ставки нет'}
         </p>
         {primaryAction.disabled ? (
           <Button size="sm" disabled>
@@ -67,7 +71,7 @@ export function AuctionCard({ auction, onIntent }: AuctionCardProps) {
           </Button>
         ) : (
           <Link
-            to={bidTarget === 'bid' ? '/auctions/$auctionUuid/bid' : '/auctions/$auctionUuid'}
+            to={goesToBid ? '/auctions/$auctionUuid/bid' : '/auctions/$auctionUuid'}
             params={{ auctionUuid: auction.uuid }}
           >
             <Button size="sm">{primaryAction.label}</Button>

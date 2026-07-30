@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 export interface BetLimits {
-  currentPrice: number | null;
-  availablePrice: number | null;
+  current: number | null;
+  available: number | null;
   min: number | null;
   max: number | null;
   step: number | null;
@@ -23,17 +23,12 @@ export function createBetSchema(limits: BetLimits) {
         .min(1, 'Введите цену')
         .refine((raw) => Number.isFinite(parsePrice(raw)), 'Цена должна быть числом')
         .transform(parsePrice),
-      with_vat: z.boolean(),
     })
     .superRefine((values, ctx) => {
       const { price } = values;
 
       if (price <= 0) {
-        ctx.addIssue({
-          code: 'custom',
-          path: PRICE_PATH,
-          message: 'Цена должна быть больше 0',
-        });
+        ctx.addIssue({ code: 'custom', path: PRICE_PATH, message: 'Цена должна быть больше 0' });
         return;
       }
 
@@ -56,8 +51,8 @@ export function createBetSchema(limits: BetLimits) {
       if (
         limits.step !== null &&
         limits.step > 0 &&
-        limits.currentPrice !== null &&
-        Math.abs(price - limits.currentPrice) % limits.step !== 0
+        limits.current !== null &&
+        Math.abs(price - limits.current) % limits.step !== 0
       ) {
         ctx.addIssue({
           code: 'custom',

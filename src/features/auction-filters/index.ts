@@ -4,9 +4,11 @@ export {
   auctionSearchSchema,
   clearFilters,
   countActiveFilters,
-  DEFAULT_LIMIT,
   DEFAULT_PAGE,
-  MAX_LIMIT,
+  DEFAULT_PER_PAGE,
+  fromDateInputValue,
+  MAX_PER_PAGE,
   parseAuctionSearch,
+  toDateInputValue,
 } from './model/searchParams';
 export { AuctionFilters } from './ui/AuctionFilters';

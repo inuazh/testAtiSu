@@ -1,24 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { type BetLimits, createBetSchema } from './betSchema';
 
-const noLimits: BetLimits = {
-  currentPrice: null,
-  availablePrice: null,
-  min: null,
-  max: null,
-  step: null,
-};
+const noLimits: BetLimits = { current: null, available: null, min: null, max: null, step: null };
 
 const downAuction: BetLimits = {
-  currentPrice: 100000,
-  availablePrice: 97500,
+  current: 100000,
+  available: 97500,
   min: 56500,
   max: 97500,
   step: 2500,
 };
 
-function validate(limits: BetLimits, price: string, withVat = true) {
-  return createBetSchema(limits).safeParse({ price, with_vat: withVat });
+function validate(limits: BetLimits, price: string) {
+  return createBetSchema(limits).safeParse({ price });
 }
 
 function firstError(limits: BetLimits, price: string): string | undefined {
@@ -52,45 +46,33 @@ describe('createBetSchema', () => {
   it('привязывает ошибку к полю price', () => {
     const result = validate(noLimits, '0');
 
-    expect(result.success).toBe(false);
     expect(result.error?.issues[0]?.path).toEqual(['price']);
   });
 
-  it('пропускает валидную ставку в границах', () => {
+  it('отдаёт только price — with_vat в SetBetRequest нет', () => {
     const result = validate(downAuction, '97500');
 
     expect(result.success).toBe(true);
-    expect(result.data).toEqual({ price: 97500, with_vat: true });
+    expect(result.data).toEqual({ price: 97500 });
   });
 
-  it('не пускает ниже min', () => {
+  it('проверяет min и max из trading.price', () => {
     expect(firstError(downAuction, '50000')).toBe('Цена не может быть меньше 56500');
-  });
-
-  it('не пускает выше max', () => {
     expect(firstError(downAuction, '99000')).toBe('Цена не может быть больше 97500');
   });
 
-  it('требует кратности шагу относительно текущей цены', () => {
+  it('проверяет кратность шагу относительно текущей цены', () => {
     expect(firstError(downAuction, '96000')).toBe(
       'Цена должна отличаться от текущей на кратное шагу 2500',
     );
     expect(validate(downAuction, '95000').success).toBe(true);
   });
 
-  it('игнорирует границы, если они не заданы в DTO', () => {
+  it('игнорирует границы, если схема их не прислала', () => {
     expect(validate(noLimits, '123456').success).toBe(true);
   });
 
   it('не проверяет шаг без текущей цены', () => {
-    const limits: BetLimits = { ...noLimits, step: 2500 };
-
-    expect(validate(limits, '1234').success).toBe(true);
-  });
-
-  it('сохраняет флаг НДС', () => {
-    const result = validate(noLimits, '1000', false);
-
-    expect(result.data?.with_vat).toBe(false);
+    expect(validate({ ...noLimits, step: 2500 }, '1234').success).toBe(true);
   });
 });

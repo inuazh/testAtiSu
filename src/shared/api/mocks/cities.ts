@@ -1,20 +1,20 @@
-import type { CityDto } from '../dto';
-
-export const MOCK_CITIES: readonly CityDto[] = [
-  { id: 'msk', name: 'Москва', region: 'Московская область' },
-  { id: 'spb', name: 'Санкт-Петербург', region: 'Ленинградская область' },
-  { id: 'nsk', name: 'Новосибирск', region: 'Новосибирская область' },
-  { id: 'ekb', name: 'Екатеринбург', region: 'Свердловская область' },
-  { id: 'knd', name: 'Краснодар', region: 'Краснодарский край' },
-  { id: 'kzn', name: 'Казань', region: 'Республика Татарстан' },
-  { id: 'nng', name: 'Нижний Новгород', region: 'Нижегородская область' },
-  { id: 'smr', name: 'Самара', region: 'Самарская область' },
-  { id: 'rnd', name: 'Ростов-на-Дону', region: 'Ростовская область' },
-  { id: 'vrn', name: 'Воронеж', region: 'Воронежская область' },
-  { id: 'prm', name: 'Пермь', region: 'Пермский край' },
-  { id: 'vlg', name: 'Волгоград', region: 'Волгоградская область' },
-];
-
-export function findCity(cityId: string): CityDto | undefined {
-  return MOCK_CITIES.find((city) => city.id === cityId);
+export interface MockCity {
+  gcId: number;
+  name: string;
+  fullName: string;
 }
+
+export const MOCK_CITIES: readonly MockCity[] = [
+  { gcId: 100, name: 'Москва', fullName: 'Москва, Московская обл.' },
+  { gcId: 200, name: 'Санкт-Петербург', fullName: 'Санкт-Петербург, Ленинградская обл.' },
+  { gcId: 300, name: 'Новосибирск', fullName: 'Новосибирск, Новосибирская обл.' },
+  { gcId: 400, name: 'Екатеринбург', fullName: 'Екатеринбург, Свердловская обл.' },
+  { gcId: 500, name: 'Краснодар', fullName: 'Краснодар, Краснодарский край' },
+  { gcId: 600, name: 'Казань', fullName: 'Казань, Республика Татарстан' },
+  { gcId: 700, name: 'Нижний Новгород', fullName: 'Нижний Новгород, Нижегородская обл.' },
+  { gcId: 800, name: 'Самара', fullName: 'Самара, Самарская обл.' },
+  { gcId: 900, name: 'Ростов-на-Дону', fullName: 'Ростов-на-Дону, Ростовская обл.' },
+  { gcId: 1000, name: 'Воронеж', fullName: 'Воронеж, Воронежская обл.' },
+  { gcId: 1100, name: 'Пермь', fullName: 'Пермь, Пермский край' },
+  { gcId: 1200, name: 'Волгоград', fullName: 'Волгоград, Волгоградская обл.' },
+];

@@ -1,14 +1,42 @@
 import { useQuery } from '@tanstack/react-query';
-import { auctionBetsQueryOptions } from '@/entities/auction';
+import { useMemo } from 'react';
+import { type AuctionDetailVm, auctionBetsQueryOptions, mapBets } from '@/entities/auction';
 import { getErrorMessage } from '@/shared/api';
 import { Badge, Button, Card, Skeleton, StateMessage } from '@/shared/ui';
 
 interface AuctionBetsProps {
-  auctionUuid: string;
+  auction: AuctionDetailVm;
 }
 
-export function AuctionBets({ auctionUuid }: AuctionBetsProps) {
-  const query = useQuery(auctionBetsQueryOptions(auctionUuid));
+export function AuctionBets({ auction }: AuctionBetsProps) {
+  const { restrictions } = auction;
+  const query = useQuery({
+    ...auctionBetsQueryOptions(auction.uuid),
+    enabled: !restrictions.hideBetsHistory,
+  });
+
+  const bets = useMemo(
+    () =>
+      query.data === undefined
+        ? null
+        : mapBets(query.data, {
+            hidden: restrictions.hideBetsHistory,
+            placesHidden: restrictions.hidePlaces,
+            ownOrganizationId: auction.ownOrganizationId,
+          }),
+    [query.data, restrictions.hideBetsHistory, restrictions.hidePlaces, auction.ownOrganizationId],
+  );
+
+  if (restrictions.hideBetsHistory) {
+    return (
+      <Card title="Ставки">
+        <StateMessage
+          title="История ставок скрыта"
+          description="Организатор закрыл список ставок по этому аукциону."
+        />
+      </Card>
+    );
+  }
 
   if (query.isPending) {
     return (
@@ -39,20 +67,7 @@ export function AuctionBets({ auctionUuid }: AuctionBetsProps) {
     );
   }
 
-  const bets = query.data;
-
-  if (bets.hidden) {
-    return (
-      <Card title="Ставки">
-        <StateMessage
-          title="История ставок скрыта"
-          description={`Организатор закрыл список ставок. Участников: ${bets.participantsCount}.`}
-        />
-      </Card>
-    );
-  }
-
-  if (bets.items.length === 0) {
+  if (bets === null || bets.items.length === 0) {
     return (
       <Card title="Ставки">
         <StateMessage
@@ -65,31 +80,37 @@ export function AuctionBets({ auctionUuid }: AuctionBetsProps) {
 
   return (
     <Card title={`Ставки · участников: ${bets.participantsCount}`}>
+      {bets.placesHidden && (
+        <p className="mb-3 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500">
+          Места в рейтинге скрыты организатором
+        </p>
+      )}
       <ul className="flex flex-col gap-2">
         {bets.items.map((bet) => (
           <li
-            key={bet.uuid}
-            className={`rounded-md border p-3 ${bet.isCancelled ? 'border-slate-200 bg-slate-50 opacity-70' : 'border-slate-200'}`}
+            key={bet.key}
+            className={`rounded-md border p-3 ${bet.isRejected ? 'border-slate-200 bg-slate-50 opacity-70' : 'border-slate-200'}`}
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium text-slate-900">{bet.carrierName}</span>
+                <span className="text-sm font-medium text-slate-900">{bet.organizationName}</span>
                 {bet.isMy && <Badge variant="info">Моя ставка</Badge>}
-                {bet.isWinner && <Badge variant="success">Победитель</Badge>}
-                {bet.isCancelled && <Badge variant="danger">Отменена</Badge>}
+                {bet.isWin && <Badge variant="success">Победитель</Badge>}
+                {bet.isCounter && <Badge variant="warning">Встречная</Badge>}
+                {bet.isRejected && <Badge variant="danger">Отклонена</Badge>}
               </div>
               <div className="text-right">
                 <p className="text-sm font-semibold text-slate-900">{bet.priceWithVat} с НДС</p>
-                <p className="text-xs text-slate-500">{bet.priceWithoutVat} без НДС</p>
+                <p className="text-xs text-slate-500">{bet.priceNoVat} без НДС</p>
               </div>
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-x-4 text-xs text-slate-500">
-              <span>Место: {bet.rank}</span>
-              <span>ИНН: {bet.carrierInn}</span>
+              <span>Место: {bet.place}</span>
+              <span>ИНН: {bet.organizationInn}</span>
               <span>{bet.createdAt}</span>
             </div>
-            {bet.isCancelled && (
-              <p className="mt-1 text-xs text-red-600">Причина отмены: {bet.cancelReason}</p>
+            {bet.isRejected && (
+              <p className="mt-1 text-xs text-red-600">Причина отклонения: {bet.cancelReason}</p>
             )}
           </li>
         ))}

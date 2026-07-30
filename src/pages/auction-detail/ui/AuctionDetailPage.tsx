@@ -37,7 +37,10 @@ export function AuctionDetailPage() {
   }
 
   const auction = query.data;
-  const { trading, restrictions, organizer, cargo } = auction;
+  const { trading, restrictions, organizer, cargo, payment, primaryAction } = auction;
+  const goesToBid =
+    primaryAction.kind === PRIMARY_ACTION.CreateBet ||
+    primaryAction.kind === PRIMARY_ACTION.EditBet;
 
   return (
     <div className="flex flex-col gap-4">
@@ -48,19 +51,18 @@ export function AuctionDetailPage() {
           </Link>
           <h1 className="mt-1 text-xl font-semibold text-slate-900">{auction.cargoNum}</h1>
           <div className="mt-2 flex flex-wrap gap-2">
-            <Badge variant={auction.statusTone}>{auction.statusLabel}</Badge>
+            <Badge variant={trading.auctionStatusTone}>{trading.auctionStatusLabel}</Badge>
             <Badge variant="info">{auction.aucTypeLabel}</Badge>
             <Badge variant={trading.statusTone}>{trading.statusLabel}</Badge>
           </div>
         </div>
 
-        {auction.primaryAction.disabled ||
-        auction.primaryAction.kind === PRIMARY_ACTION.ViewBets ? (
-          <Button disabled={auction.primaryAction.disabled}>{auction.primaryAction.label}</Button>
-        ) : (
+        {goesToBid ? (
           <Link to="/auctions/$auctionUuid/bid" params={{ auctionUuid }}>
-            <Button>{auction.primaryAction.label}</Button>
+            <Button>{primaryAction.label}</Button>
           </Link>
+        ) : (
+          <Button disabled={primaryAction.disabled}>{primaryAction.label}</Button>
         )}
       </header>
 
@@ -68,11 +70,11 @@ export function AuctionDetailPage() {
         <DataList
           rows={[
             { label: 'Номер заявки', value: auction.cargoNum },
+            { label: 'Дата заявки', value: auction.cargoDate },
             { label: 'Тип аукциона', value: auction.aucTypeLabel },
-            { label: 'Статус', value: auction.statusLabel },
-            { label: 'Расстояние', value: auction.distance },
-            { label: 'Торги до', value: trading.finishAt },
-            { label: 'Комментарий', value: auction.comment },
+            { label: 'Статус аукциона', value: trading.auctionStatusLabel },
+            { label: 'Создан', value: auction.createdAt },
+            { label: 'Сборный рейс', value: auction.assemblyNum },
           ]}
         />
       </Card>
@@ -82,16 +84,18 @@ export function AuctionDetailPage() {
           rows={[
             { label: 'Название', value: organizer.name },
             { label: 'ИНН', value: organizer.inn },
+            { label: 'КПП', value: organizer.kpp },
+            { label: 'Код абонента', value: organizer.subscriberCode },
           ]}
         />
-        {organizer.contactsHidden ? (
+        {auction.contactsHidden ? (
           <p className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500">
             Контакты скрыты организатором
           </p>
         ) : (
           <ul className="mt-3 flex flex-col gap-1">
-            {organizer.contacts.map((contact) => (
-              <li key={`${contact.name}-${contact.phone}`} className="text-sm text-slate-700">
+            {auction.contacts.map((contact) => (
+              <li key={contact.key} className="text-sm text-slate-700">
                 {contact.name} · {contact.phone} · {contact.email}
               </li>
             ))}
@@ -102,19 +106,27 @@ export function AuctionDetailPage() {
       <Card title="Маршрут">
         {restrictions.hidePointsAddressAndContacts && (
           <p className="mb-3 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500">
-            Адреса точек скрыты организатором
+            Адреса точек и контакты скрыты организатором
           </p>
         )}
         <ol className="flex flex-col gap-3">
           {auction.points.map((point) => (
-            <li key={point.uuid} className="border-l-2 border-slate-200 pl-3">
-              <p className="text-xs text-slate-500">{point.kindLabel}</p>
-              <p className="text-sm font-medium text-slate-900">
-                {point.cityName}
-                <span className="font-normal text-slate-500"> · {point.regionName}</span>
-              </p>
+            <li key={point.key} className="border-l-2 border-slate-200 pl-3">
+              <p className="text-xs text-slate-500">{point.opTypeLabel}</p>
+              <p className="text-sm font-medium text-slate-900">{point.cityFullName}</p>
               <p className="text-xs text-slate-500">{point.address}</p>
-              <p className="text-xs text-slate-500">{point.dateTime}</p>
+              <p className="text-xs text-slate-500">
+                {point.startDate} — {point.endDate}
+              </p>
+              <p className="text-xs text-slate-500">
+                {point.cargoName} · {point.packageName} · {point.weight} т · {point.volume} м³
+              </p>
+              <p className="text-xs text-slate-500">
+                {point.contactName} · {point.contactPhone}
+              </p>
+              {point.comment !== '—' && (
+                <p className="text-xs text-slate-500">Комментарий: {point.comment}</p>
+              )}
             </li>
           ))}
         </ol>
@@ -123,58 +135,54 @@ export function AuctionDetailPage() {
       <Card title="Груз и требования к ТС">
         <DataList
           rows={[
-            { label: 'Груз', value: cargo.name },
-            { label: 'Вес', value: cargo.weight },
-            { label: 'Объём', value: cargo.volume },
-            { label: 'Тип кузова', value: cargo.bodyTypeLabel },
             {
               label: 'Стоимость груза',
               value: cargo.priceHidden ? 'Скрыта организатором' : cargo.price,
             },
+            { label: 'Тип кузова', value: cargo.bodyType },
+            { label: 'Количество машин', value: cargo.truckCount },
+            { label: 'Расстояние', value: cargo.distance },
+            { label: 'Температурный режим', value: cargo.temperature },
+            { label: 'Типы погрузки', value: cargo.loadingTypes },
+            { label: 'Документы', value: cargo.docs },
+            { label: 'Требуемое ТС', value: cargo.carType },
+            { label: 'Вместимость ТС', value: cargo.carCapacity },
+            { label: 'Международная перевозка', value: cargo.isInternational ? 'Да' : 'Нет' },
+            { label: 'Контейнер', value: cargo.containered ? 'Да' : 'Нет' },
           ]}
         />
-        {auction.vehicleRequirements !== null && (
-          <div className="mt-3 border-t border-slate-100 pt-3">
-            <DataList
-              rows={[
-                {
-                  label: 'Допустимые кузова',
-                  value: auction.vehicleRequirements.bodyTypeLabels.join(', '),
-                },
-                { label: 'Температурный режим', value: auction.vehicleRequirements.temperature },
-                { label: 'Тип погрузки', value: auction.vehicleRequirements.loadingType },
-                { label: 'Комментарий', value: auction.vehicleRequirements.comment },
-              ]}
-            />
-          </div>
-        )}
       </Card>
 
-      {auction.paymentConditions !== null && (
-        <Card title="Условия оплаты">
-          <DataList
-            rows={[
-              { label: 'Форма оплаты', value: auction.paymentConditions.paymentType },
-              { label: 'Отсрочка', value: auction.paymentConditions.deferment },
-              { label: 'НДС', value: auction.paymentConditions.vatLabel },
-            ]}
-          />
-        </Card>
-      )}
+      <Card title="Условия оплаты">
+        <DataList
+          rows={[
+            { label: 'Форма оплаты', value: payment.form },
+            { label: 'Условие', value: payment.condition },
+            { label: 'Отсрочка', value: payment.delay },
+            { label: 'Валюта', value: payment.currencyCode },
+            { label: 'Предоплата', value: payment.prepay },
+          ]}
+        />
+      </Card>
 
       <Card title="Параметры торгов">
         <DataList
           rows={[
-            { label: 'Текущая цена', value: trading.currentPrice },
-            { label: 'Доступная цена', value: trading.availablePrice },
+            { label: 'Текущая цена', value: trading.currentPrice.withVat },
+            { label: 'Текущая цена без НДС', value: trading.currentPrice.noVat },
+            { label: 'Доступная цена', value: trading.availablePrice.withVat },
+            { label: 'Доступная цена без НДС', value: trading.availablePrice.noVat },
+            { label: 'Минимум', value: trading.minPrice.withVat },
+            { label: 'Максимум', value: trading.maxPrice.withVat },
+            { label: 'Шаг ставки', value: trading.step.withVat },
             { label: 'Цена за км', value: trading.pricePerKm },
-            { label: 'Минимум', value: trading.min },
-            { label: 'Максимум', value: trading.max },
-            { label: 'Шаг ставки', value: trading.step },
+            { label: 'Единица измерения ставки', value: trading.bidMeasurementLabel },
+            { label: 'Начало торгов', value: trading.startTime },
+            { label: 'Окончание торгов', value: trading.stopTime },
             { label: 'Мой торговый статус', value: trading.statusLabel },
             {
               label: 'Моя ставка',
-              value: trading.hasMyBet ? trading.myBetPrice : 'Ставка не сделана',
+              value: trading.hasMyBet ? trading.myBetWithVat : 'Ставка не сделана',
             },
           ]}
         />
@@ -185,7 +193,7 @@ export function AuctionDetailPage() {
         )}
       </Card>
 
-      <AuctionBets auctionUuid={auctionUuid} />
+      <AuctionBets auction={auction} />
     </div>
   );
 }
