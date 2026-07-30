@@ -15,7 +15,8 @@
     "format": "biome format --write .",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "check": "npm run build && npm run test && npm run lint"
   },
   "dependencies": {
     "@hookform/resolvers": "5.5.7",
