@@ -21,13 +21,6 @@ export function AuctionsListPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <header>
-        <h1 className="text-xl font-semibold text-slate-900">Аукционы</h1>
-        <p className="text-sm text-slate-500">
-          Фильтры синхронизированы с адресной строкой — ссылку можно переслать как есть.
-        </p>
-      </header>
-
       <AuctionFilters search={search} activeCount={activeCount} onChange={replaceSearch} />
 
       <AuctionList

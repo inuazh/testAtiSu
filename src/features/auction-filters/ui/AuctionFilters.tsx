@@ -13,7 +13,7 @@ import {
   TRADING_STATUS_VALUES,
   type TradingStatusDto,
 } from '@/shared/api';
-import { Button, Field, Input, Select, type SelectOption } from '@/shared/ui';
+import { Button, CheckboxGroup, Field, Input, Select, type SelectOption } from '@/shared/ui';
 import {
   type AuctionSearch,
   clearFilters,
@@ -47,17 +47,10 @@ const TRISTATE_OPTIONS: SelectOption[] = [
   { value: 'false', label: 'Нет' },
 ];
 
-const MULTI_SELECT_CLASSES =
-  'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500';
-
 interface AuctionFiltersProps {
   search: AuctionSearch;
   activeCount: number;
   onChange: (next: AuctionSearch) => void;
-}
-
-function selectedValues(element: HTMLSelectElement): string[] {
-  return [...element.selectedOptions].map((option) => option.value);
 }
 
 export function AuctionFilters({ search, activeCount, onChange }: AuctionFiltersProps) {
@@ -100,67 +93,44 @@ export function AuctionFilters({ search, activeCount, onChange }: AuctionFilters
           />
         </Field>
 
-        <Field label="Тип аукциона" htmlFor="filter-auc-type">
-          <select
+        <Field label="Тип аукциона">
+          <CheckboxGroup
             id="filter-auc-type"
-            multiple
-            size={4}
-            className={MULTI_SELECT_CLASSES}
+            ariaLabel="Тип аукциона"
+            options={AUCTION_TYPE_OPTIONS}
             value={search.auc_type ?? []}
-            onChange={(event) => {
-              const selected = selectedValues(event.target) as AuctionTypeFilterValue[];
-
-              patch({ auc_type: selected.length > 0 ? selected : undefined });
-            }}
-          >
-            {AUCTION_TYPE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onChange={(selected) =>
+              patch({
+                auc_type: selected.length > 0 ? (selected as AuctionTypeFilterValue[]) : undefined,
+              })
+            }
+          />
         </Field>
 
-        <Field label="Мой торговый статус" htmlFor="filter-status">
-          <select
+        <Field label="Мой торговый статус">
+          <CheckboxGroup
             id="filter-status"
-            multiple
-            size={4}
-            className={MULTI_SELECT_CLASSES}
+            ariaLabel="Мой торговый статус"
+            options={TRADING_STATUS_OPTIONS}
             value={search.status ?? []}
-            onChange={(event) => {
-              const selected = selectedValues(event.target) as TradingStatusDto[];
-
-              patch({ status: selected.length > 0 ? selected : undefined });
-            }}
-          >
-            {TRADING_STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onChange={(selected) =>
+              patch({ status: selected.length > 0 ? (selected as TradingStatusDto[]) : undefined })
+            }
+          />
         </Field>
 
-        <Field label="Статус аукциона" htmlFor="filter-statuses">
-          <select
+        <Field label="Статус аукциона">
+          <CheckboxGroup
             id="filter-statuses"
-            multiple
-            size={4}
-            className={MULTI_SELECT_CLASSES}
+            ariaLabel="Статус аукциона"
+            options={AUCTION_STATUS_OPTIONS}
             value={(search.statuses ?? []).map(String)}
-            onChange={(event) => {
-              const selected = selectedValues(event.target).map(Number) as AuctionStatusCode[];
+            onChange={(selected) => {
+              const codes = selected.map(Number) as AuctionStatusCode[];
 
-              patch({ statuses: selected.length > 0 ? selected : undefined });
+              patch({ statuses: codes.length > 0 ? codes : undefined });
             }}
-          >
-            {AUCTION_STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          />
         </Field>
 
         <Field label="Город погрузки" htmlFor="filter-load-city">
@@ -250,7 +220,7 @@ export function AuctionFilters({ search, activeCount, onChange }: AuctionFilters
         </Field>
       </div>
 
-      <div className="mt-3 flex items-center justify-between gap-3">
+      <div className="mt-3 flex flex-wrap items-center justify-end gap-3">
         <p className="text-xs text-slate-500">
           {activeCount === 0 ? 'Фильтры не заданы' : `Активных фильтров: ${activeCount}`}
         </p>

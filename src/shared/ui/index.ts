@@ -2,6 +2,7 @@ export type { BadgeVariant } from './Badge';
 export { Badge } from './Badge';
 export { Button } from './Button';
 export { Card } from './Card';
+export { CheckboxGroup } from './CheckboxGroup';
 export type { DataListRow } from './DataList';
 export { DataList } from './DataList';
 export { Field } from './Field';

@@ -24,7 +24,7 @@ test('список аукционов отдаёт карточки', async () =
   await router.navigate({ to: '/auctions' });
   render(<App />);
 
-  expect(await screen.findByRole('heading', { name: 'Аукционы' })).toBeInTheDocument();
+  expect(await screen.findByRole('link', { name: 'Аукционы' })).toBeInTheDocument();
   expect(await screen.findAllByText(cargoNum)).not.toHaveLength(0);
 });
 
