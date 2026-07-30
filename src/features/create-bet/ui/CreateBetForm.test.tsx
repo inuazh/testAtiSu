@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
 import type { ReactNode } from 'react';
-import { afterEach, expect, test } from 'vitest';
+import { beforeEach, expect, test } from 'vitest';
 import { mapAuctionDetail } from '@/entities/auction';
 import { API_BASE_URL } from '@/shared/api';
 import { server } from '@/shared/api/mocks/server';
@@ -11,7 +11,7 @@ import { mockStore } from '@/shared/api/mocks/store';
 import { Toaster, useToastStore } from '@/shared/ui';
 import { CreateBetForm } from './CreateBetForm';
 
-afterEach(() => {
+beforeEach(() => {
   useToastStore.setState({ toasts: [] });
 });
 
