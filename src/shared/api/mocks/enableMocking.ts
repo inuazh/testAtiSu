@@ -1,9 +1,5 @@
-export function isMockingEnabled(): boolean {
-  return import.meta.env.VITE_ENABLE_MOCKS !== 'false';
-}
-
 export async function enableMocking(): Promise<void> {
-  if (!isMockingEnabled()) {
+  if (import.meta.env.VITE_ENABLE_MOCKS === 'false') {
     return;
   }
 
