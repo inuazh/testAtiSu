@@ -15,7 +15,7 @@ function RootLayout() {
       <header className="border-b border-slate-200 bg-white">
         <nav className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
           <Link to="/auctions" className="font-semibold">
-            Аукционы
+            Грузовые аукционы
           </Link>
         </nav>
       </header>

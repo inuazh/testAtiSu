@@ -83,7 +83,7 @@ export function AuctionFilters({ search, activeCount, onChange }: AuctionFilters
       className="rounded-lg border border-slate-200 bg-white p-4"
       onSubmit={(event) => event.preventDefault()}
     >
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Field label="Номер заявки" htmlFor="filter-cargo-num">
           <Input
             id="filter-cargo-num"

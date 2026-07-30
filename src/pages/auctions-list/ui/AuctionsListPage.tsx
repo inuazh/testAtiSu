@@ -21,6 +21,8 @@ export function AuctionsListPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <h1 className="text-xl font-semibold text-slate-900">Аукционы</h1>
+
       <AuctionFilters search={search} activeCount={activeCount} onChange={replaceSearch} />
 
       <AuctionList
