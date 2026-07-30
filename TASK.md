@@ -129,11 +129,68 @@ MSW-моки должны соответствовать схеме и реал�
 
 ---
 
-## Замечания к исходному документу
+## Схема API
 
-`openapi.auctions.v0.json` в материалах отсутствует
-Если работа начата без схемы — всё предположительное помечать
-`// PROVISIONAL: причина`.
+`openapi.auctions.v0.json` получена и лежит в корне. Это источник правды,
+типы генерируются из неё. Пометки `PROVISIONAL` из кода снять.
+
+Базовый путь: `/api/v1/`.
+
+### Ловушки схемы
+
+Места, где интуитивное прочтение расходится с контрактом:
+
+**`status` и `statuses` — про разные вещи.**
+- `status` — массив **строк торгового статуса пользователя** (`Leading`, `Losing`, …)
+- `statuses` — массив **чисел статуса аукциона** (1–7)
+- `mobile_statuses` — массив чисел торгового статуса
+
+**В каждом enum есть `Unknown`.** UI обязан отображать его нейтрально, а не падать.
+Касается `AuctionType`, `AuctionStatus`, `TradingStatus`, `BidMeasurementType`,
+`OperationType`, `PaymentDelayType`.
+
+**Тип аукциона называется `AuctionType`,** не `AucType`.
+
+**Фильтры лежат плоско** в корне `AuctionListRequest`, без обёртки. `per_page`, не `limit`.
+
+**Пагинация:** ответ `{ data, meta }`, meta = `current_page`, `from`, `to`,
+`per_page`, `last_page`, `total`.
+
+**Вложенность элемента списка:** `main`, `organizer`, `route`, `cargo`, `trading`,
+`payment`. Цены в `trading.price`, своя ставка в `trading.your`,
+`price_per_km` — в `main`.
+
+**Объекта `restrictions` не существует.** Флаги `no_view_cargo_price`,
+`hide_points_address_and_contacts`, `hide_bets_history`, `hide_places` —
+внутри `trading`. `hide_bets_history` дублируется на верхнем уровне
+`AuctionShowResponse`.
+
+**`min`/`max`/`step`/`available` — в `trading.price`,** у каждого двойник `_no_vat`.
+
+**Поля ставки:** `is_rejected` (не `is_cancelled`), `is_win` (не `is_winner`),
+`place` (не `rank`), `price_no_vat`. Организация перевозчика — плоские поля
+`organization_name`, `organization_inn`, `contact_name`, `contact_phone`.
+Ответ — `{ bets: [...] }`.
+
+**`SetBetRequest = { price }`** и всё.
+
+**У `POST /auctions/{auctionUuid}/bets` нет схемы ответа** — проксируется от
+upstream. Значит после успеха инвалидировать и перечитывать, а не доверять телу.
+
+**Формат 422:**
+`{ code: "validation_failed", title, message, trace_id?, errors: [{ field, message, code? }] }`
+где `field` — путь через точку в snake_case.
+
+**Коды ответов:** 401 и 503 есть на всех эндпоинтах.
+
+### Расхождения с формулировками ТЗ
+
+- «цена от/до» → `current_price_from` / `current_price_to`
+  (плюс отдельно `price_per_km_from` / `price_per_km_to`)
+- «мок-словарь городов» → эндпоинта справочника в схеме нет, словарь свой.
+  Рядом с `load_city` (строка) есть `load_gc_id` (число) и `load_range`
+- «количество участников» → `participants_count` в схеме отсутствует,
+  выводить по уникальным `organization_id`
 
 ## Конвенции проекта
 
@@ -142,5 +199,7 @@ MSW-моки должны соответствовать схеме и реал�
 - строковые enum-значения — только в `shared/api`, в UI импорт по имени,
   строковых литералов в компонентах нет
 - компоненты работают с ViewModel, не с DTO напрямую; маппинг в `entities`
-- комментарии не писать, кроме пометок `PROVISIONAL`
+- комментарии не писать, кроме обоснования решений, не следующих из схемы
 - не добавлять функциональность, о которой не просили
+- коммитить после каждого завершённого шага, ветку не менять без спроса
+- Windows PowerShell 5.1: `&&` не работает, использовать `npm run check`
