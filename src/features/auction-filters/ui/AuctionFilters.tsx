@@ -83,7 +83,7 @@ export function AuctionFilters({ search, activeCount, onChange }: AuctionFilters
       className="rounded-lg border border-slate-200 bg-white p-4"
       onSubmit={(event) => event.preventDefault()}
     >
-      <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="columns-1 gap-x-4 *:mb-2 *:break-inside-avoid sm:columns-2 lg:columns-3">
         <Field label="Номер заявки" htmlFor="filter-cargo-num">
           <Input
             id="filter-cargo-num"
@@ -112,6 +112,7 @@ export function AuctionFilters({ search, activeCount, onChange }: AuctionFilters
             id="filter-status"
             ariaLabel="Мой торговый статус"
             options={TRADING_STATUS_OPTIONS}
+            columns={2}
             value={search.status ?? []}
             onChange={(selected) =>
               patch({ status: selected.length > 0 ? (selected as TradingStatusDto[]) : undefined })
@@ -124,6 +125,7 @@ export function AuctionFilters({ search, activeCount, onChange }: AuctionFilters
             id="filter-statuses"
             ariaLabel="Статус аукциона"
             options={AUCTION_STATUS_OPTIONS}
+            columns={2}
             value={(search.statuses ?? []).map(String)}
             onChange={(selected) => {
               const codes = selected.map(Number) as AuctionStatusCode[];
